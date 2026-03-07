@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bookmarks</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main id="app" aria-label="Bookmarks menu">
+    <header class="toolbar">
+      <button id="back-btn" class="icon-btn" title="Back" aria-label="Back" disabled>
+        <span aria-hidden="true">&#x2039;</span>
+      </button>
+      <div id="crumbs" class="crumbs"></div>
+      <button id="refresh-btn" class="icon-btn" title="Refresh" aria-label="Refresh">
+        <span aria-hidden="true">&#x21bb;</span>
+      </button>
+    </header>
+    <section id="bookmark-list" class="menu" aria-label="Bookmarks list"></section>
+  </main>
+
+  <div id="flyout-layer" aria-hidden="true"></div>
+
+  <div id="context-menu" class="context-menu" hidden>
+    <div id="context-title" class="context-title"></div>
+    <div id="context-items"></div>
+  </div>
+
+  <template id="item-template">
+    <div class="item" draggable="true">
+      <span class="item-icon" aria-hidden="true"></span>
+      <span class="item-title"></span>
+      <span class="item-meta"></span>
+    </div>
+  </template>
+
+  <script src="popup.js"></script>
+</body>
+</html>

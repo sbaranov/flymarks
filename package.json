@@ -1,0 +1,17 @@
+{
+  "name": "bookmarks",
+  "version": "1.0.0",
+  "main": "background.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "browser": "'/tmp/chrome-for-testing/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing' --use-mock-keychain --user-data-dir=/tmp/bookmarks-ext-manual --no-first-run --no-default-browser-check --load-extension=/Users/stas/bookmarks",
+    "browser:fresh": "profile_dir=$(mktemp -d /tmp/bookmarks-ext-manual.XXXXXX) && '/tmp/chrome-for-testing/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing' --use-mock-keychain --user-data-dir=\"$profile_dir\" --no-first-run --no-default-browser-check --load-extension=/Users/stas/bookmarks"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}
