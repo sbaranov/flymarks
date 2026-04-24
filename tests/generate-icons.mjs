@@ -23,41 +23,67 @@ function chunk(type, data) {
 }
 
 function makePng(size) {
+  const scale = 8;
+  const hi = size * scale;
+  const view = 16;
   const rgba = Buffer.alloc(size * size * 4, 0);
-  const dark = [95, 99, 104, 255];
-  const light = [95, 99, 104, 80];
+  const hiAlpha = new Uint8Array(hi * hi);
+  const ink = [220, 220, 220];
 
-  function px(x, y, color) {
-    if (x < 0 || y < 0 || x >= size || y >= size) return;
-    const i = (y * size + x) * 4;
-    rgba[i] = color[0];
-    rgba[i + 1] = color[1];
-    rgba[i + 2] = color[2];
-    rgba[i + 3] = color[3];
+  function toPx(value) {
+    return (value / view) * hi;
   }
 
-  const s = size;
-  const stroke = Math.max(1, Math.round(size / 16));
-  const left = Math.round(s * 0.16);
-  const right = Math.round(s * 0.84);
-  const top = Math.round(s * 0.22);
-  const mid = Math.round(s * 0.38);
-  const bottom = Math.round(s * 0.78);
+  function drawLine(x1, y1, x2, y2, stroke) {
+    const ax = toPx(x1);
+    const ay = toPx(y1);
+    const bx = toPx(x2);
+    const by = toPx(y2);
+    const radius = toPx(stroke) / 2;
+    const dx = bx - ax;
+    const dy = by - ay;
+    const len2 = dx * dx + dy * dy;
 
-  for (let y = top; y <= bottom; y++) {
-    for (let x = left; x <= right; x++) {
-      const border = x <= left + stroke || x >= right - stroke || y <= mid + stroke || y >= bottom - stroke;
-      if (border) px(x, y, dark);
-      else if (y <= mid + stroke * 2) px(x, y, light);
+    for (let py = 0; py < hi; py += 1) {
+      for (let px = 0; px < hi; px += 1) {
+        const cx = px + 0.5;
+        const cy = py + 0.5;
+        const t = Math.max(0, Math.min(1, ((cx - ax) * dx + (cy - ay) * dy) / len2));
+        const nx = ax + t * dx;
+        const ny = ay + t * dy;
+        if (Math.hypot(cx - nx, cy - ny) <= radius) {
+          hiAlpha[py * hi + px] = 255;
+        }
+      }
     }
   }
 
-  for (let x = left + stroke; x < left + Math.round(s * 0.36); x++) {
-    for (let y = top - stroke; y <= mid; y++) {
-      if (y <= top + stroke || x <= left + stroke * 2) px(x, y, dark);
-      else px(x, y, light);
+  function downsample() {
+    const area = scale * scale;
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        let alpha = 0;
+        for (let sy = 0; sy < scale; sy += 1) {
+          for (let sx = 0; sx < scale; sx += 1) {
+            alpha += hiAlpha[(y * scale + sy) * hi + x * scale + sx];
+          }
+        }
+        const i = (y * size + x) * 4;
+        rgba[i] = ink[0];
+        rgba[i + 1] = ink[1];
+        rgba[i + 2] = ink[2];
+        rgba[i + 3] = Math.round(alpha / area);
+      }
     }
   }
+
+  const stroke = 1.2;
+  drawLine(1.25, 1.65, 14.75, 1.65, stroke);
+  drawLine(1.25, 1.65, 1.25, 14.35, stroke);
+  drawLine(14.75, 1.65, 14.75, 14.35, stroke);
+  drawLine(1.25, 14.35, 8, 10.45, stroke);
+  drawLine(14.75, 14.35, 8, 10.45, stroke);
+  downsample();
 
   const rows = [];
   for (let y = 0; y < size; y++) {
