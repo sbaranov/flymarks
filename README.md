@@ -32,6 +32,8 @@ Use platform `mac-x64` instead of `mac-arm64` in the `jq` query.
 
 ## Run Extension Test
 
+Use Chrome for Testing for automated or reproducible extension tests. Use default Google Chrome only for final visual verification against the real toolbar, bookmarks bar, favicon cache, and installed-profile context.
+
 From project root:
 
 ```bash
@@ -95,7 +97,7 @@ Optional:
    ```
 4. Repeat.
 
-### Manual Verification (optional)
+### Manual Testing: Chrome for Testing
 
 If you want to inspect UI manually while developing, launch Chrome for Testing with:
 
@@ -105,6 +107,19 @@ If you want to inspect UI manually while developing, launch Chrome for Testing w
   --user-data-dir=/tmp/bookmarks-ext-manual \
   --load-extension=/Users/stas/bookmarks
 ```
+
+### Visual Verification: Default Chrome
+
+For final visual checks, use the user's normal Google Chrome profile rather than Chrome for Testing. This matches the real toolbar, bookmarks bar, favicon cache, and extension popup context.
+
+1. Open `chrome://extensions/` in Google Chrome.
+2. Ensure Developer mode is on.
+3. If `Bookmarks Bar Menu` is already listed, click its Reload button.
+4. If it is not listed, click Load unpacked and select `/Users/stas/code/bookmarks`.
+5. Open the toolbar action named `Bookmarks Bar` to inspect the popup.
+6. If the card shows an Errors button, open it, inspect whether the errors are current or stale, clear stale errors, reload the extension, and reopen the popup to verify the button stays gone.
+
+Ad hoc Chrome screenshots should be named `chrome-*.png`; this convention is ignored by git.
 
 ### Important Caveats
 
