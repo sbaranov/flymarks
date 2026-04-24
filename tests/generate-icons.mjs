@@ -27,33 +27,39 @@ function makePng(size) {
   const hi = size * scale;
   const view = 16;
   const rgba = Buffer.alloc(size * size * 4, 0);
-  const hiAlpha = new Uint8Array(hi * hi);
-  const ink = [220, 220, 220];
+  const hiRgba = Buffer.alloc(hi * hi * 4, 0);
+  const blue = [26, 115, 232, 255];
+  const lightBlue = [138, 180, 248, 255];
 
   function toPx(value) {
     return (value / view) * hi;
   }
 
-  function drawLine(x1, y1, x2, y2, stroke) {
-    const ax = toPx(x1);
-    const ay = toPx(y1);
-    const bx = toPx(x2);
-    const by = toPx(y2);
-    const radius = toPx(stroke) / 2;
-    const dx = bx - ax;
-    const dy = by - ay;
-    const len2 = dx * dx + dy * dy;
+  function pointInPolygon(px, py, points) {
+    let inside = false;
+    for (let i = 0, j = points.length - 1; i < points.length; j = i, i += 1) {
+      const xi = toPx(points[i][0]);
+      const yi = toPx(points[i][1]);
+      const xj = toPx(points[j][0]);
+      const yj = toPx(points[j][1]);
+      const crosses = (yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi;
+      if (crosses) inside = !inside;
+    }
+    return inside;
+  }
 
-    for (let py = 0; py < hi; py += 1) {
-      for (let px = 0; px < hi; px += 1) {
-        const cx = px + 0.5;
-        const cy = py + 0.5;
-        const t = Math.max(0, Math.min(1, ((cx - ax) * dx + (cy - ay) * dy) / len2));
-        const nx = ax + t * dx;
-        const ny = ay + t * dy;
-        if (Math.hypot(cx - nx, cy - ny) <= radius) {
-          hiAlpha[py * hi + px] = 255;
-        }
+  function paint(x, y, color) {
+    const i = (y * hi + x) * 4;
+    hiRgba[i] = color[0];
+    hiRgba[i + 1] = color[1];
+    hiRgba[i + 2] = color[2];
+    hiRgba[i + 3] = color[3];
+  }
+
+  function fillPolygon(points, color) {
+    for (let y = 0; y < hi; y += 1) {
+      for (let x = 0; x < hi; x += 1) {
+        if (pointInPolygon(x + 0.5, y + 0.5, points)) paint(x, y, color);
       }
     }
   }
@@ -62,27 +68,42 @@ function makePng(size) {
     const area = scale * scale;
     for (let y = 0; y < size; y += 1) {
       for (let x = 0; x < size; x += 1) {
-        let alpha = 0;
+        let r = 0;
+        let g = 0;
+        let b = 0;
+        let a = 0;
         for (let sy = 0; sy < scale; sy += 1) {
           for (let sx = 0; sx < scale; sx += 1) {
-            alpha += hiAlpha[(y * scale + sy) * hi + x * scale + sx];
+            const hiIndex = ((y * scale + sy) * hi + x * scale + sx) * 4;
+            const alpha = hiRgba[hiIndex + 3];
+            r += hiRgba[hiIndex] * alpha;
+            g += hiRgba[hiIndex + 1] * alpha;
+            b += hiRgba[hiIndex + 2] * alpha;
+            a += alpha;
           }
         }
         const i = (y * size + x) * 4;
-        rgba[i] = ink[0];
-        rgba[i + 1] = ink[1];
-        rgba[i + 2] = ink[2];
-        rgba[i + 3] = Math.round(alpha / area);
+        rgba[i] = a ? Math.round(r / a) : 0;
+        rgba[i + 1] = a ? Math.round(g / a) : 0;
+        rgba[i + 2] = a ? Math.round(b / a) : 0;
+        rgba[i + 3] = Math.round(a / area);
       }
     }
   }
 
-  const stroke = 1.2;
-  drawLine(1.25, 1.65, 14.75, 1.65, stroke);
-  drawLine(1.25, 1.65, 1.25, 14.35, stroke);
-  drawLine(14.75, 1.65, 14.75, 14.35, stroke);
-  drawLine(1.25, 14.35, 8, 10.45, stroke);
-  drawLine(14.75, 14.35, 8, 10.45, stroke);
+  fillPolygon([
+    [1.85, 0.65],
+    [14.15, 0.65],
+    [14.15, 15.55],
+    [8, 11.45],
+    [1.85, 15.55],
+  ], blue);
+  fillPolygon([
+    [10.45, 0.65],
+    [14.15, 0.65],
+    [14.15, 15.55],
+    [10.45, 13.08],
+  ], lightBlue);
   downsample();
 
   const rows = [];
