@@ -44,6 +44,13 @@ function isFolder(node) {
   return !node.url;
 }
 
+function getFaviconUrl(url) {
+  const faviconUrl = new URL(chrome.runtime.getURL('/_favicon/'));
+  faviconUrl.searchParams.set('pageUrl', url);
+  faviconUrl.searchParams.set('size', '32');
+  return faviconUrl.toString();
+}
+
 function sortedByIndex(nodes) {
   return [...nodes].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
 }
@@ -221,12 +228,23 @@ function createItem(node, source = 'main') {
   item.dataset.nodeId = node.id;
   item.dataset.source = source;
   item.querySelector('.item-title').textContent = node.title || (node.url || 'Untitled');
+  const iconEl = item.querySelector('.item-icon');
 
   if (isFolder(node)) {
     const count = node.children?.length ?? 0;
     item.querySelector('.item-meta').textContent = count ? String(count) : '';
   } else {
     item.querySelector('.item-meta').textContent = '';
+    const favicon = document.createElement('img');
+    favicon.className = 'favicon';
+    favicon.src = getFaviconUrl(node.url);
+    favicon.alt = '';
+    favicon.decoding = 'async';
+    favicon.addEventListener('error', () => {
+      favicon.remove();
+      iconEl.classList.add('fallback');
+    }, { once: true });
+    iconEl.append(favicon);
   }
 
   item.addEventListener('click', async (ev) => {

@@ -130,8 +130,19 @@ body {
 
 .item-icon {
   width: 16px;
-  text-align: center;
+  height: 16px;
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 16px;
+  align-items: center;
+  justify-content: center;
   color: var(--muted);
+}
+
+.favicon {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 .item-title {
@@ -148,14 +159,35 @@ body {
 }
 
 .item.folder .item-icon::before {
-  content: "\25b8";
-  font-size: 10px;
+  content: "";
+  position: absolute;
+  left: 1px;
+  top: 4px;
+  width: 14px;
+  height: 10px;
+  border: 2px solid currentColor;
+  border-radius: 2px;
 }
 
-.item.bookmark .item-icon::before {
-  content: "\2022";
-  font-size: 14px;
-  line-height: 0;
+.item.folder .item-icon::after {
+  content: "";
+  position: absolute;
+  left: 1px;
+  top: 2px;
+  width: 7px;
+  height: 4px;
+  border: 2px solid currentColor;
+  border-bottom: 0;
+  border-radius: 2px 2px 0 0;
+  background: var(--surface);
+}
+
+.item.bookmark .item-icon.fallback::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .context-menu {

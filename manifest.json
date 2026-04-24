@@ -3,7 +3,7 @@
   "name": "Bookmarks Bar Menu",
   "version": "1.0.0",
   "description": "Chrome-style bookmarks bar menu with context actions and drag reorder.",
-  "permissions": ["bookmarks", "tabs", "storage"],
+  "permissions": ["bookmarks", "tabs", "storage", "favicon"],
   "background": {
     "service_worker": "background.js"
   },
