@@ -268,14 +268,45 @@ async function main() {
           ${JSON.stringify(fixture.names.b)},
           ${JSON.stringify(fixture.names.c)},
         ];
-        const ok = wanted.every((text) =>
-          [...document.querySelectorAll('.item-title')].some((el) => el.textContent.includes(text))
-        );
-        return ok;
+        for (let i = 0; i < 30; i++) {
+          const ok = wanted.every((text) =>
+            [...document.querySelectorAll('.item-title')].some((el) => el.textContent.includes(text))
+          );
+          if (ok) return true;
+          await window.__popupTest?.refreshCurrent?.();
+          await new Promise((r) => setTimeout(r, 100));
+        }
+        return false;
       })();
       `,
     );
     must(listRendered, 'Bookmark list did not render expected test entries.');
+
+    const malformedNodesHandled = await cdp.eval(
+      sessionId,
+      `
+      (async () => {
+        window.__popupTest.renderNodes([
+          null,
+          { id: 'null-url', title: 'Null URL', url: null, index: 0 },
+          { id: 'empty-url', title: 'Empty URL', url: '', index: 1 },
+          { id: 'good-url', title: 'Good URL', url: 'https://example.com/good', index: 2 },
+        ]);
+
+        const rows = [...document.querySelectorAll('.item')];
+        const nullUrl = rows.find((row) => row.querySelector('.item-title')?.textContent === 'Null URL');
+        const emptyUrl = rows.find((row) => row.querySelector('.item-title')?.textContent === 'Empty URL');
+        const goodUrl = rows.find((row) => row.querySelector('.item-title')?.textContent === 'Good URL');
+        const ok = nullUrl?.classList.contains('folder') &&
+          emptyUrl?.classList.contains('folder') &&
+          goodUrl?.classList.contains('bookmark');
+
+        await window.__popupTest.refreshCurrent();
+        return Boolean(ok);
+      })();
+      `,
+    );
+    must(malformedNodesHandled, 'Malformed bookmark nodes were not rendered safely.');
 
     const clickBehavior = await cdp.eval(
       sessionId,

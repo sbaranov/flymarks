@@ -40,8 +40,12 @@ const api = {
   storageSet: (obj) => chrome.storage.local.set(obj),
 };
 
+function isBookmark(node) {
+  return typeof node?.url === 'string' && node.url.length > 0;
+}
+
 function isFolder(node) {
-  return !node.url;
+  return Boolean(node) && !isBookmark(node);
 }
 
 function getFaviconUrl(url) {
@@ -52,7 +56,7 @@ function getFaviconUrl(url) {
 }
 
 function sortedByIndex(nodes) {
-  return [...nodes].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+  return [...nodes].filter(Boolean).sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
 }
 
 function toSnapshotNode(node, parentId = null) {
@@ -200,6 +204,8 @@ function renderList(children) {
 }
 
 async function openBookmarkWithModifiers(node, ev = null) {
+  if (!isBookmark(node)) return;
+
   const modifierOpenTab = Boolean(ev && (ev.metaKey || ev.ctrlKey || ev.button === 1));
   const openWindow = Boolean(ev && ev.shiftKey);
 
@@ -224,6 +230,13 @@ async function openBookmarkWithModifiers(node, ev = null) {
 
 function createItem(node, source = 'main') {
   const item = itemTemplate.content.firstElementChild.cloneNode(true);
+  if (!node) {
+    item.classList.add('folder');
+    item.querySelector('.item-title').textContent = 'Untitled';
+    item.querySelector('.item-meta').textContent = '';
+    return item;
+  }
+
   item.classList.add(isFolder(node) ? 'folder' : 'bookmark');
   item.dataset.nodeId = node.id;
   item.dataset.source = source;
@@ -331,8 +344,12 @@ function scheduleFlyout(anchorEl, folderNode) {
 }
 
 async function openFlyout(anchorEl, folderNode, depth = 0) {
+  if (!folderNode?.id) return;
+
   const subtree = await api.getSubTree(folderNode.id);
   const folder = subtree[0];
+  if (!folder || !isFolder(folder)) return;
+
   const children = sortedByIndex(folder.children || []);
 
   state.activeFlyouts.slice(depth).forEach((el) => el.remove());
@@ -598,6 +615,10 @@ window.__popupTest = {
     flyoutCount: state.activeFlyouts.length,
     contextOpen: !contextMenuEl.hidden,
   }),
+  renderNodes: (nodes) => {
+    renderList(nodes);
+    return true;
+  },
   reorderByIds: async (sourceId, targetId, before = true) => {
     const children = sortedByIndex(await api.getChildren(state.currentFolderId));
     const targetIndex = children.findIndex((n) => n.id === targetId);
