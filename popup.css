@@ -161,25 +161,10 @@ body {
 .item.folder .item-icon::before {
   content: "";
   position: absolute;
-  left: 1px;
-  top: 4px;
-  width: 14px;
-  height: 10px;
-  border: 2px solid currentColor;
-  border-radius: 2px;
-}
-
-.item.folder .item-icon::after {
-  content: "";
-  position: absolute;
-  left: 1px;
-  top: 2px;
-  width: 7px;
-  height: 4px;
-  border: 2px solid currentColor;
-  border-bottom: 0;
-  border-radius: 2px 2px 0 0;
-  background: var(--surface);
+  inset: 0;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.75 4.75c0-.69.56-1.25 1.25-1.25h3.05c.38 0 .74.17.98.46l.72.84H13c.69 0 1.25.56 1.25 1.25v6.2c0 .69-.56 1.25-1.25 1.25H3c-.69 0-1.25-.56-1.25-1.25v-7.5Z' fill='none' stroke='black' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") center / 18px 18px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.75 4.75c0-.69.56-1.25 1.25-1.25h3.05c.38 0 .74.17.98.46l.72.84H13c.69 0 1.25.56 1.25 1.25v6.2c0 .69-.56 1.25-1.25 1.25H3c-.69 0-1.25-.56-1.25-1.25v-7.5Z' fill='none' stroke='black' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") center / 18px 18px no-repeat;
 }
 
 .item.bookmark .item-icon.fallback::before {
