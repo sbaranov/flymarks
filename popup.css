@@ -36,7 +36,9 @@
 html,
 body {
   margin: 0;
-  width: 360px;
+  min-width: 260px;
+  width: max-content;
+  max-width: 560px;
   max-height: 580px;
   overflow: auto;
   font: var(--font);
@@ -45,6 +47,9 @@ body {
 }
 
 #app {
+  min-width: 260px;
+  width: max-content;
+  max-width: 560px;
   max-height: 580px;
   display: flex;
   flex-direction: column;
@@ -52,6 +57,9 @@ body {
 
 .menu {
   flex: 1;
+  min-width: 260px;
+  width: max-content;
+  max-width: 560px;
   overflow: auto;
   padding: 4px;
   background: var(--surface);
@@ -64,6 +72,8 @@ body {
   align-items: center;
   gap: 8px;
   padding: 4px 8px;
+  min-width: 252px;
+  max-width: 552px;
   border-radius: 4px;
   user-select: none;
   cursor: default;

@@ -354,6 +354,43 @@ async function main() {
     );
     must(malformedNodesHandled, 'Malformed bookmark nodes were not rendered safely.');
 
+    const popupWidthSizing = await cdp.eval(
+      sessionId,
+      `
+      (async () => {
+        const width = () => Math.round(document.documentElement.getBoundingClientRect().width);
+
+        window.__popupTest.renderNodes([
+          { id: 'short-url', title: 'Short', url: 'https://example.com/short', index: 0 },
+        ]);
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const shortWidth = width();
+
+        window.__popupTest.renderNodes([
+          {
+            id: 'long-url',
+            title: 'CodexExtTest Extremely long bookmark title that should widen the popup until the configured maximum width',
+            url: 'https://example.com/long',
+            index: 0,
+          },
+        ]);
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const longWidth = width();
+
+        await window.__popupTest.refreshCurrent();
+        return { shortWidth, longWidth };
+      })();
+      `,
+    );
+    must(
+      popupWidthSizing.shortWidth >= 260 && popupWidthSizing.shortWidth < 360,
+      `Popup did not shrink for short content: ${JSON.stringify(popupWidthSizing)}`,
+    );
+    must(
+      popupWidthSizing.longWidth > popupWidthSizing.shortWidth && popupWidthSizing.longWidth <= 560,
+      `Popup did not expand within max width for long content: ${JSON.stringify(popupWidthSizing)}`,
+    );
+
     const clickBehavior = await cdp.eval(
       sessionId,
       `
