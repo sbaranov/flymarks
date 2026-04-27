@@ -1,7 +1,4 @@
 const listEl = document.getElementById('bookmark-list');
-const contextMenuEl = document.getElementById('context-menu');
-const contextTitleEl = document.getElementById('context-title');
-const contextItemsEl = document.getElementById('context-items');
 const itemTemplate = document.getElementById('item-template');
 
 const SNAPSHOT_KEY = 'bookmarksBarSnapshotV1';
@@ -200,6 +197,20 @@ function createBackItem() {
   return item;
 }
 
+function createContextBackItem(node) {
+  const item = itemTemplate.content.firstElementChild.cloneNode(true);
+  item.classList.add('back');
+  item.draggable = false;
+  item.querySelector('.item-icon').textContent = '\u2039';
+  item.querySelector('.item-title').textContent = node.title || node.url || 'Bookmark';
+  item.querySelector('.item-meta').textContent = '';
+  item.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    hideContextMenu();
+  });
+  return item;
+}
+
 function renderList(children, opts = {}) {
   listEl.innerHTML = '';
 
@@ -374,37 +385,47 @@ function createItem(node, source = 'main') {
 }
 
 function hideContextMenu() {
-  contextMenuEl.hidden = true;
-  contextItemsEl.innerHTML = '';
+  if (!state.contextNodeId) return;
   state.contextNodeId = null;
+  renderCurrentFolderFromState();
 }
 
 function separator() {
   const el = document.createElement('div');
-  el.className = 'context-sep';
+  el.className = 'menu-sep';
   return el;
 }
 
 function createContextAction(label, action, opts = {}) {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'context-item';
-  if (opts.danger) button.classList.add('danger');
-  button.textContent = label;
-  button.addEventListener('click', async () => {
-    hideContextMenu();
+  const item = itemTemplate.content.firstElementChild.cloneNode(true);
+  item.classList.add('context-action');
+  item.draggable = false;
+  item.querySelector('.item-icon').textContent = '';
+  item.querySelector('.item-title').textContent = label;
+  item.querySelector('.item-meta').textContent = '';
+  if (opts.danger) item.classList.add('danger');
+  if (opts.disabled) {
+    item.classList.add('disabled');
+    item.setAttribute('aria-disabled', 'true');
+  }
+  item.addEventListener('click', async (ev) => {
+    ev.stopPropagation();
+    if (opts.disabled) return;
+    state.contextNodeId = null;
     try {
       await action();
     } finally {
       if (opts.refresh !== false) {
         await refreshCurrent();
+      } else {
+        renderCurrentFolderFromState();
       }
       if (opts.closePopup) {
         window.close();
       }
     }
   });
-  return button;
+  return item;
 }
 
 async function openAllInFolder(folderId, mode = 'tab') {
@@ -431,29 +452,29 @@ async function openAllInFolder(folderId, mode = 'tab') {
   await Promise.all(rest.map((url) => api.createTab({ url, active: false })));
 }
 
-function openContextMenu(x, y, node) {
+function openContextMenu(_x, _y, node) {
   state.contextNodeId = node.id;
-  contextTitleEl.textContent = node.title || node.url || 'Bookmark';
-  contextItemsEl.innerHTML = '';
+  listEl.innerHTML = '';
 
   const folder = isFolder(node);
+  listEl.append(createContextBackItem(node), createSeparator());
 
   if (!folder) {
-    contextItemsEl.append(createContextAction('Open', async () => {
+    listEl.append(createContextAction('Open', async () => {
       await openBookmarkWithModifiers(node, null);
     }, { refresh: false }));
-    contextItemsEl.append(createContextAction('Open in New Tab', () => api.createTab({ url: node.url, active: false }), { refresh: false }));
-    contextItemsEl.append(createContextAction('Open in New Window', () => api.createWindow({ url: node.url }), { refresh: false }));
-    contextItemsEl.append(createContextAction('Open in Incognito Window', () => api.createWindow({ url: node.url, incognito: true }), { refresh: false }));
-    contextItemsEl.append(separator());
+    listEl.append(createContextAction('Open in New Tab', () => api.createTab({ url: node.url, active: false }), { refresh: false }));
+    listEl.append(createContextAction('Open in New Window', () => api.createWindow({ url: node.url }), { refresh: false }));
+    listEl.append(createContextAction('Open in Incognito Window', () => api.createWindow({ url: node.url, incognito: true }), { refresh: false }));
+    listEl.append(separator());
   } else {
-    contextItemsEl.append(createContextAction('Open All', () => openAllInFolder(node.id, 'tab'), { refresh: false, closePopup: true }));
-    contextItemsEl.append(createContextAction('Open All in New Window', () => openAllInFolder(node.id, 'window'), { refresh: false }));
-    contextItemsEl.append(createContextAction('Open All in Incognito Window', () => openAllInFolder(node.id, 'incognito'), { refresh: false }));
-    contextItemsEl.append(separator());
+    listEl.append(createContextAction('Open All', () => openAllInFolder(node.id, 'tab'), { refresh: false, closePopup: true }));
+    listEl.append(createContextAction('Open All in New Window', () => openAllInFolder(node.id, 'window'), { refresh: false }));
+    listEl.append(createContextAction('Open All in Incognito Window', () => openAllInFolder(node.id, 'incognito'), { refresh: false }));
+    listEl.append(separator());
   }
 
-  contextItemsEl.append(createContextAction('Add New Bookmark', async () => {
+  listEl.append(createContextAction('Add New Bookmark', async () => {
     const title = prompt('Bookmark title:', 'New bookmark');
     if (!title) return;
     const url = prompt('Bookmark URL:', 'https://');
@@ -462,23 +483,23 @@ function openContextMenu(x, y, node) {
     await api.create({ parentId, title, url });
   }));
 
-  contextItemsEl.append(createContextAction('Add New Folder', async () => {
+  listEl.append(createContextAction('Add New Folder', async () => {
     const title = prompt('Folder name:', 'New folder');
     if (!title) return;
     const parentId = folder ? node.id : node.parentId;
     await api.create({ parentId, title });
   }));
 
-  contextItemsEl.append(separator());
-  contextItemsEl.append(createContextAction('Cut', async () => {
+  listEl.append(separator());
+  listEl.append(createContextAction('Cut', async () => {
     state.clipboard = { id: node.id, mode: 'cut' };
   }, { refresh: false }));
-  contextItemsEl.append(createContextAction('Copy', async () => {
+  listEl.append(createContextAction('Copy', async () => {
     state.clipboard = { id: node.id, mode: 'copy' };
   }, { refresh: false }));
 
   const canPaste = Boolean(state.clipboard);
-  const paste = createContextAction('Paste', async () => {
+  listEl.append(createContextAction('Paste', async () => {
     if (!state.clipboard) return;
 
     const destinationParentId = folder ? node.id : node.parentId;
@@ -490,12 +511,10 @@ function openContextMenu(x, y, node) {
 
     const [source] = await chrome.bookmarks.getSubTree(state.clipboard.id);
     await cloneNode(source, destinationParentId);
-  });
-  paste.disabled = !canPaste;
-  contextItemsEl.append(paste);
+  }, { disabled: !canPaste }));
 
-  contextItemsEl.append(separator());
-  contextItemsEl.append(createContextAction('Edit', async () => {
+  listEl.append(separator());
+  listEl.append(createContextAction('Edit', async () => {
     const title = prompt('Edit title:', node.title || '');
     if (title === null) return;
 
@@ -510,30 +529,24 @@ function openContextMenu(x, y, node) {
   }));
 
   if (folder) {
-    contextItemsEl.append(createContextAction('Sort by Name', async () => {
+    listEl.append(createContextAction('Sort by Name', async () => {
       const children = sortedByIndex(await api.getChildren(node.id));
       const sorted = [...children].sort((a, b) => (a.title || '').localeCompare(b.title || ''));
       await Promise.all(sorted.map((child, index) => api.move(child.id, { parentId: node.id, index })));
     }));
   }
 
-  contextItemsEl.append(createContextAction('Bookmark Manager', async () => {
+  listEl.append(createContextAction('Bookmark Manager', async () => {
     await api.createTab({ url: 'chrome://bookmarks/', active: true });
   }, { refresh: false }));
 
-  contextItemsEl.append(createContextAction('Delete', async () => {
+  listEl.append(createContextAction('Delete', async () => {
     if (folder) {
       await api.removeTree(node.id);
     } else {
       await api.remove(node.id);
     }
   }, { danger: true }));
-
-  const maxLeft = window.innerWidth - 280;
-  const maxTop = window.innerHeight - 360;
-  contextMenuEl.style.left = `${Math.max(0, Math.min(maxLeft, x))}px`;
-  contextMenuEl.style.top = `${Math.max(0, Math.min(maxTop, y))}px`;
-  contextMenuEl.hidden = false;
 }
 
 async function cloneNode(sourceNode, parentId) {
@@ -563,7 +576,16 @@ async function refreshCurrent() {
   }
 }
 
+function renderCurrentFolderFromState() {
+  const folder = state.nodesById.get(state.currentFolderId);
+  renderList(folder?.children || []);
+}
+
 async function goBack() {
+  if (state.contextNodeId) {
+    hideContextMenu();
+    return;
+  }
   if (isRootView()) return;
   const previous = state.path.length > 1 ? state.path[state.path.length - 2] : null;
   const targetId = previous && previous.parentId !== null ? previous.id : state.rootFolderId;
@@ -607,7 +629,7 @@ window.__popupTest = {
   getState: () => ({
     rootFolderId: state.rootFolderId,
     currentFolderId: state.currentFolderId,
-    contextOpen: !contextMenuEl.hidden,
+    contextOpen: Boolean(state.contextNodeId),
   }),
   renderNodes: (nodes) => {
     renderList(nodes);

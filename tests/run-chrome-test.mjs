@@ -419,20 +419,36 @@ async function main() {
           button: 2,
         }));
 
-        const deleteBtn = [...document.querySelectorAll('#context-items .context-item')].find((el) =>
+        const reusedPopup = window.__popupTest.getState().contextOpen &&
+          !document.querySelector('#context-menu') &&
+          [...document.querySelectorAll('#bookmark-list > .item.context-action')].length > 0;
+
+        const actionLabels = [...document.querySelectorAll('#bookmark-list > .item.context-action .item-title')]
+          .map((el) => el.textContent.trim());
+        const deleteBtn = [...document.querySelectorAll('#bookmark-list > .item.context-action')].find((el) =>
           el.textContent.trim() === 'Delete'
         );
+        if (!reusedPopup || !deleteBtn) {
+          return { removed: false, reusedPopup, hasDelete: Boolean(deleteBtn), actionLabels };
+        }
         deleteBtn.click();
         for (let i = 0; i < 20; i++) {
           const stillExists = (await chrome.bookmarks.search(targetText)).length > 0;
-          if (!stillExists) return true;
+          if (!stillExists) return { removed: true, reusedPopup, hasDelete: true, actionLabels };
           await new Promise((r) => setTimeout(r, 80));
         }
-        return false;
+        const matches = await chrome.bookmarks.search(targetText);
+        return {
+          removed: false,
+          reusedPopup,
+          hasDelete: true,
+          actionLabels,
+          matches: matches.map((node) => ({ id: node.id, title: node.title, url: node.url || null })),
+        };
       })();
       `,
     );
-    must(deletedViaContext, 'Context menu Delete did not remove bookmark.');
+    must(deletedViaContext.removed, `Context menu Delete did not remove bookmark: ${JSON.stringify(deletedViaContext)}`);
 
     const reordered = await cdp.eval(
       sessionId,
