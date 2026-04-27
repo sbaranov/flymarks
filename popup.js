@@ -186,8 +186,9 @@ function createBackItem() {
   const item = itemTemplate.content.firstElementChild.cloneNode(true);
   item.classList.add('back');
   item.draggable = false;
+  const folder = state.nodesById.get(state.currentFolderId);
   item.querySelector('.item-icon').textContent = '\u2039';
-  item.querySelector('.item-title').textContent = 'Back';
+  item.querySelector('.item-title').textContent = folder?.title || 'Back';
   item.querySelector('.item-meta').textContent = '';
   item.addEventListener('click', async (ev) => {
     ev.stopPropagation();

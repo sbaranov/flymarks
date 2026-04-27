@@ -305,6 +305,7 @@ async function main() {
           await new Promise((r) => setTimeout(r, 80));
         }
         const enteredVirtual = window.__popupTest.getState().currentFolderId === ${JSON.stringify(fixture.topLevelVirtuals[0]?.id)};
+        const virtualBackLabel = document.querySelector('#bookmark-list > .item.back .item-title')?.textContent.trim();
 
         document.querySelector('#bookmark-list > .item.back')?.click();
         for (let i = 0; i < 20; i++) {
@@ -314,13 +315,17 @@ async function main() {
         const backWorks = window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId &&
           !document.querySelector('#bookmark-list > .item.back');
 
-        return { toolbarGone, virtualsFirst, enteredVirtual, backWorks };
+        return { toolbarGone, virtualsFirst, enteredVirtual, virtualBackLabel, backWorks };
       })();
       `,
     );
     must(rootNavigation.toolbarGone, 'Popup toolbar/header is still rendered.');
     must(rootNavigation.virtualsFirst, `Virtual root folders were not rendered first: ${JSON.stringify(rootNavigation)}`);
     must(rootNavigation.enteredVirtual !== false, `Virtual root folder did not open: ${JSON.stringify(rootNavigation)}`);
+    must(
+      rootNavigation.virtualBackLabel === fixture.topLevelVirtuals[0]?.title,
+      `Back row did not show current folder title: ${JSON.stringify(rootNavigation)}`,
+    );
     must(rootNavigation.backWorks, `Back row did not return to Bookmarks Bar root: ${JSON.stringify(rootNavigation)}`);
 
     const malformedNodesHandled = await cdp.eval(
@@ -486,6 +491,7 @@ async function main() {
         for (let i = 0; i < 20; i++) {
           const state = window.__popupTest.getState();
           if (state.currentFolderId === ${JSON.stringify(fixture.ids.folder)}) {
+            const backLabel = document.querySelector('#bookmark-list > .item.back .item-title')?.textContent.trim();
             const childVisible = [...document.querySelectorAll('.item-title')].some((el) =>
               el.textContent.includes(${JSON.stringify(fixture.names.child)})
             );
@@ -496,6 +502,7 @@ async function main() {
             }
             return {
               ...result,
+              backLabel,
               childVisible,
               backWorks: window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId,
             };
@@ -509,6 +516,10 @@ async function main() {
     must(
       clickFolderNavigation.opened && clickFolderNavigation.childVisible && clickFolderNavigation.backWorks,
       `Click folder navigation did not show expected folder content: ${JSON.stringify(clickFolderNavigation)}`,
+    );
+    must(
+      clickFolderNavigation.backLabel === fixture.names.folder,
+      `Back row did not show clicked folder title: ${JSON.stringify(clickFolderNavigation)}`,
     );
 
     console.log(`PASS: Extension UI and interactions verified in live browser: ${BROWSER_BIN}`);
