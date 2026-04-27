@@ -5,30 +5,36 @@ Chrome extension that renders Bookmarks Bar entries in a Chrome-like popup menu 
 ## Install Chrome for Testing
 
 This project uses **Chrome for Testing** for automation (not your personal Chrome profile).
-Install it under `/tmp/chrome-for-testing` so multiple workspaces can reuse one shared browser download.
+Install it as a per-user macOS app so it survives reboots and temporary-directory cleanup:
+
+```text
+/Users/stas/Applications/Google Chrome for Testing.app
+```
 
 ### macOS (Apple Silicon)
 
 ```bash
-mkdir -p /tmp/chrome-for-testing
-cd /tmp/chrome-for-testing
+mkdir -p /Users/stas/Applications /tmp/chrome-for-testing-download
+cd /tmp/chrome-for-testing-download
 
 curl -fsSL https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json -o versions.json
 url=$(jq -r '.channels.Stable.downloads.chrome[] | select(.platform=="mac-arm64") | .url' versions.json)
 curl -fL "$url" -o chrome-mac-arm64.zip
 rm -rf chrome-mac-arm64
 unzip -q -o chrome-mac-arm64.zip
+rm -rf '/Users/stas/Applications/Google Chrome for Testing.app'
+ditto 'chrome-mac-arm64/Google Chrome for Testing.app' '/Users/stas/Applications/Google Chrome for Testing.app'
 ```
 
 Binary path:
 
 ```text
-/tmp/chrome-for-testing/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
+/Users/stas/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
 ```
 
 ### macOS (Intel)
 
-Use platform `mac-x64` instead of `mac-arm64` in the `jq` query.
+Use platform `mac-x64` instead of `mac-arm64` in the `jq` query, and replace `chrome-mac-arm64` with `chrome-mac-x64` in the zip filename and `ditto` source path.
 
 ## Run Extension Test
 
@@ -37,9 +43,8 @@ Use Chrome for Testing for automated or reproducible extension tests. Use defaul
 From project root:
 
 ```bash
-cd /Users/stas/bookmarks
+cd /path/to/bookmarks
 HEADLESS=0 \
-BROWSER_BIN='/tmp/chrome-for-testing/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing' \
 node --experimental-websocket tests/run-chrome-test.mjs
 ```
 
@@ -53,7 +58,7 @@ PASS: Extension UI and interactions verified in live browser: ...
 
 - Test runner uses an isolated temporary profile (`--user-data-dir`), so it does not touch your normal browser data.
 - Runner enables `--use-mock-keychain` to avoid Keychain unlock prompts.
-- If `BROWSER_BIN` is not set, runner first tries shared `/tmp/chrome-for-testing/...` paths.
+- If `BROWSER_BIN` is not set, runner uses `/Users/stas/Applications/Google Chrome for Testing.app`.
 - If you want to regenerate toolbar icons:
 
 ```bash
@@ -92,7 +97,6 @@ Optional:
 3. Run the automated browser test:
    ```bash
    HEADLESS=0 \
-   BROWSER_BIN='/tmp/chrome-for-testing/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing' \
    node --experimental-websocket tests/run-chrome-test.mjs
    ```
 4. Repeat.
@@ -102,10 +106,10 @@ Optional:
 If you want to inspect UI manually while developing, launch Chrome for Testing with:
 
 ```bash
-'/tmp/chrome-for-testing/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing' \
+'/Users/stas/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing' \
   --use-mock-keychain \
   --user-data-dir=/tmp/bookmarks-ext-manual \
-  --load-extension=/Users/stas/bookmarks
+  --load-extension="$PWD"
 ```
 
 ### Visual Verification: Default Chrome
@@ -115,7 +119,7 @@ For final visual checks, use the user's normal Google Chrome profile rather than
 1. Open `chrome://extensions/` in Google Chrome.
 2. Ensure Developer mode is on.
 3. If `Bookmarks Bar Menu` is already listed, click its Reload button.
-4. If it is not listed, click Load unpacked and select `/Users/stas/code/bookmarks`.
+4. If it is not listed, click Load unpacked and select the current repository checkout.
 5. Open the toolbar action named `Bookmarks Bar` to inspect the popup.
 6. If the card shows an Errors button, open it, inspect whether the errors are current or stale, clear stale errors, reload the extension, and reopen the popup to verify the button stays gone.
 
@@ -169,7 +173,7 @@ This section documents the key constraints and decisions behind the E2E browser 
 - Use a dynamically allocated free remote-debugging port per run to avoid collisions.
 - Synthetic drag-and-drop via CDP can be unreliable; deterministic test hooks are used for reorder verification.
 
-### 7. Shared browser installation model
+### 7. Browser installation model
 
-- Chrome for Testing should be installed under `/tmp/chrome-for-testing` so multiple workspaces can reuse it.
+- Chrome for Testing should be installed at `/Users/stas/Applications/Google Chrome for Testing.app` so multiple workspaces can reuse it and it survives reboots.
 - The repository intentionally does not commit browser binaries.

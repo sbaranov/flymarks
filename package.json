@@ -7,8 +7,8 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "browser": "'/tmp/chrome-for-testing/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing' --use-mock-keychain --user-data-dir=/tmp/bookmarks-ext-manual --no-first-run --no-default-browser-check --load-extension=/Users/stas/code/bookmarks",
-    "browser:fresh": "profile_dir=$(mktemp -d /tmp/bookmarks-ext-manual.XXXXXX) && '/tmp/chrome-for-testing/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing' --use-mock-keychain --user-data-dir=\"$profile_dir\" --no-first-run --no-default-browser-check --load-extension=/Users/stas/code/bookmarks"
+    "browser": "browser_bin=\"${BROWSER_BIN:-/Users/stas/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing}\"; \"$browser_bin\" --use-mock-keychain --user-data-dir=/tmp/bookmarks-ext-manual --no-first-run --no-default-browser-check --load-extension=\"$PWD\"",
+    "browser:fresh": "profile_dir=$(mktemp -d /tmp/bookmarks-ext-manual.XXXXXX) && browser_bin=\"${BROWSER_BIN:-/Users/stas/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing}\" && \"$browser_bin\" --use-mock-keychain --user-data-dir=\"$profile_dir\" --no-first-run --no-default-browser-check --load-extension=\"$PWD\""
   },
   "keywords": [],
   "author": "",

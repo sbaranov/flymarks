@@ -5,14 +5,8 @@ import { spawn } from 'node:child_process';
 import net from 'node:net';
 
 const EXT_DIR = path.resolve(process.cwd());
-const CANDIDATE_BROWSERS = [
-  process.env.BROWSER_BIN,
-  '/tmp/chrome-for-testing/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
-  '/tmp/chrome-for-testing/chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  '/Applications/Chromium.app/Contents/MacOS/Chromium',
-  '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
-].filter(Boolean);
+const BROWSER_BIN = process.env.BROWSER_BIN ||
+  '/Users/stas/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing';
 const HEADLESS = process.env.HEADLESS !== '0';
 
 function sleep(ms) {
@@ -155,14 +149,13 @@ async function resolveExtensionIdFromTargets(cdp, timeoutMs = 15000) {
 
 async function main() {
   const debugPort = await getFreePort();
-  const browserBin = CANDIDATE_BROWSERS.find((bin) => fs.existsSync(bin));
-  if (!browserBin) {
-    throw new Error('No Chromium-based browser binary was found.');
+  if (!fs.existsSync(BROWSER_BIN)) {
+    throw new Error(`Chrome for Testing was not found at ${BROWSER_BIN}`);
   }
 
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bookmarks-ext-'));
   const chrome = spawn(
-    browserBin,
+    BROWSER_BIN,
     [
       `--remote-debugging-port=${debugPort}`,
       `--user-data-dir=${profileDir}`,
@@ -432,7 +425,7 @@ async function main() {
     );
     must(hoverFlyout, 'Hover flyout did not open expected folder content.');
 
-    console.log(`PASS: Extension UI and interactions verified in live browser: ${browserBin}`);
+    console.log(`PASS: Extension UI and interactions verified in live browser: ${BROWSER_BIN}`);
   } finally {
     try {
       cdp?.close();
