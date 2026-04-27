@@ -51,45 +51,6 @@ body {
   flex-direction: column;
 }
 
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px;
-  border-bottom: 1px solid var(--separator);
-  background: var(--surface);
-}
-
-.icon-btn {
-  width: 24px;
-  height: 24px;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-}
-
-.icon-btn:hover:enabled {
-  background: var(--hover);
-  color: var(--hover-text);
-}
-
-.icon-btn:disabled {
-  opacity: 0.38;
-  cursor: default;
-}
-
-.crumbs {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  color: var(--muted);
-  font-size: 12px;
-}
-
 .menu {
   flex: 1;
   overflow: auto;
@@ -113,6 +74,21 @@ body {
 .item.active {
   background: var(--hover);
   color: var(--hover-text);
+}
+
+.item.back {
+  color: var(--muted);
+}
+
+.item.back .item-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.menu-sep {
+  height: 1px;
+  background: var(--separator);
+  margin: 4px 6px;
 }
 
 .item.drop-before::before,

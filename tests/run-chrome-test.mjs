@@ -216,6 +216,12 @@ async function main() {
 
         const [treeRoot] = await chrome.bookmarks.getTree();
         const bar = (treeRoot.children || []).find((n) => n.id === '1') || treeRoot.children[0];
+        const topLevelVirtuals = (treeRoot.children || [])
+          .filter((n) => (
+            n.id !== bar.id &&
+            (n.id === '2' || n.id === '3' || /^(other|mobile) bookmarks$/i.test(n.title || ''))
+          ))
+          .map((n) => ({ id: n.id, title: n.title }));
         const existing = await chrome.bookmarks.search('CodexExtTest ');
         for (const node of existing) {
           try {
@@ -230,7 +236,7 @@ async function main() {
         const b = await chrome.bookmarks.create({ parentId: bar.id, title: names.b, url: 'https://example.com/b' });
         const c = await chrome.bookmarks.create({ parentId: bar.id, title: names.c, url: 'https://example.com/c' });
 
-        return { names, ids: { folder: folder.id, a: a.id, b: b.id, c: c.id } };
+        return { names, ids: { folder: folder.id, a: a.id, b: b.id, c: c.id }, topLevelVirtuals };
       })();
       `,
     );
@@ -274,6 +280,48 @@ async function main() {
       `,
     );
     must(listRendered, 'Bookmark list did not render expected test entries.');
+
+    const rootNavigation = await cdp.eval(
+      sessionId,
+      `
+      (async () => {
+        const toolbarGone = !document.querySelector('.toolbar') &&
+          !document.querySelector('#back-btn') &&
+          !document.querySelector('#refresh-btn');
+
+        const virtualTitles = ${JSON.stringify(fixture.topLevelVirtuals.map((n) => n.title))};
+        const rowTitles = [...document.querySelectorAll('#bookmark-list > .item .item-title')]
+          .map((el) => el.textContent.trim());
+        const virtualsFirst = virtualTitles.every((title, index) => rowTitles[index] === title);
+
+        if (!virtualTitles.length) {
+          return { toolbarGone, virtualsFirst: true, backWorks: true };
+        }
+
+        const firstVirtual = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')][0];
+        firstVirtual.click();
+        for (let i = 0; i < 20; i++) {
+          if (document.querySelector('#bookmark-list > .item.back')) break;
+          await new Promise((r) => setTimeout(r, 80));
+        }
+        const enteredVirtual = window.__popupTest.getState().currentFolderId === ${JSON.stringify(fixture.topLevelVirtuals[0]?.id)};
+
+        document.querySelector('#bookmark-list > .item.back')?.click();
+        for (let i = 0; i < 20; i++) {
+          if (window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId) break;
+          await new Promise((r) => setTimeout(r, 80));
+        }
+        const backWorks = window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId &&
+          !document.querySelector('#bookmark-list > .item.back');
+
+        return { toolbarGone, virtualsFirst, enteredVirtual, backWorks };
+      })();
+      `,
+    );
+    must(rootNavigation.toolbarGone, 'Popup toolbar/header is still rendered.');
+    must(rootNavigation.virtualsFirst, `Virtual root folders were not rendered first: ${JSON.stringify(rootNavigation)}`);
+    must(rootNavigation.enteredVirtual !== false, `Virtual root folder did not open: ${JSON.stringify(rootNavigation)}`);
+    must(rootNavigation.backWorks, `Back row did not return to Bookmarks Bar root: ${JSON.stringify(rootNavigation)}`);
 
     const malformedNodesHandled = await cdp.eval(
       sessionId,
@@ -416,14 +464,19 @@ async function main() {
       sessionId,
       `
       (async () => {
-        const opened = await window.__popupTest.openFlyoutById(${JSON.stringify(fixture.ids.folder)});
-        if (!opened) return false;
-        await new Promise((r) => setTimeout(r, 80));
-        return window.__popupTest.getState().flyoutCount > 0;
+        const result = await window.__popupTest.openFlyoutById(${JSON.stringify(fixture.ids.folder)});
+        for (let i = 0; i < 20; i++) {
+          const state = window.__popupTest.getState();
+          if (state.flyoutCount > 0) {
+            return { ...result, flyoutCount: state.flyoutCount };
+          }
+          await new Promise((r) => setTimeout(r, 80));
+        }
+        return { ...result, flyoutCount: window.__popupTest.getState().flyoutCount };
       })();
       `,
     );
-    must(hoverFlyout, 'Hover flyout did not open expected folder content.');
+    must(hoverFlyout.flyoutCount > 0, `Hover flyout did not open expected folder content: ${JSON.stringify(hoverFlyout)}`);
 
     console.log(`PASS: Extension UI and interactions verified in live browser: ${BROWSER_BIN}`);
   } finally {

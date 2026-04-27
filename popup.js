@@ -1,7 +1,4 @@
 const listEl = document.getElementById('bookmark-list');
-const crumbsEl = document.getElementById('crumbs');
-const backBtn = document.getElementById('back-btn');
-const refreshBtn = document.getElementById('refresh-btn');
 const contextMenuEl = document.getElementById('context-menu');
 const contextTitleEl = document.getElementById('context-title');
 const contextItemsEl = document.getElementById('context-items');
@@ -12,8 +9,10 @@ const SNAPSHOT_KEY = 'bookmarksBarSnapshotV1';
 const SNAPSHOT_LOCAL_KEY = 'bookmarksBarSnapshotLocalV1';
 
 const state = {
+  rootFolderId: null,
   currentFolderId: null,
   path: [],
+  topLevelFolders: [],
   nodesById: new Map(),
   clipboard: null,
   drag: null,
@@ -95,32 +94,42 @@ function loadSnapshotSync() {
   }
 }
 
-async function getBookmarksBar() {
-  const [treeRoot] = await api.getTree();
-  const children = treeRoot?.children || [];
-  let bar = children.find((n) => n.id === '1');
-  if (!bar) {
-    bar = children.find((n) => /bookmark/i.test(n.title) && /bar/i.test(n.title)) || children[0];
-  }
-  if (!bar) {
-    throw new Error('Bookmarks Bar was not found.');
-  }
-  return bar;
+function getVirtualRootFolders() {
+  return sortedByIndex(state.topLevelFolders).filter((node) => (
+    node.id !== state.rootFolderId &&
+    (node.id === '2' || node.id === '3' || /^(other|mobile) bookmarks$/i.test(node.title || ''))
+  ));
+}
+
+function isRootView() {
+  return Boolean(state.rootFolderId) && state.currentFolderId === state.rootFolderId;
 }
 
 function renderCachedFirstPaintSync() {
   const cached = loadSnapshotSync();
   if (!cached || !cached.id) return false;
   hydrateNodes(cached);
+  state.rootFolderId = cached.id;
   state.currentFolderId = cached.id;
   state.path = computePath(cached.id);
-  renderCrumbs();
-  renderList(cached.children || []);
+  renderList(cached.children || [], { includeRootVirtuals: false });
   return true;
 }
 
 async function loadRoot() {
-  const bar = await getBookmarksBar();
+  const [treeRoot] = await api.getTree();
+  const rootChildren = treeRoot?.children || [];
+  const bar = rootChildren.find((n) => n.id === '1') ||
+    rootChildren.find((n) => /bookmark/i.test(n.title) && /bar/i.test(n.title)) ||
+    rootChildren[0];
+  if (!bar) {
+    throw new Error('Bookmarks Bar was not found.');
+  }
+
+  state.rootFolderId = bar.id;
+  state.topLevelFolders = rootChildren;
+  hydrateNodes({ ...treeRoot, parentId: null });
+
   const subtree = await api.getSubTree(bar.id);
   const liveBar = subtree[0];
   hydrateNodes(liveBar);
@@ -149,7 +158,6 @@ async function enterFolder(folderId, replacePath = false) {
   }
 
   state.currentFolderId = folder.id;
-  renderCrumbs();
   renderList(folder.children || []);
 }
 
@@ -173,11 +181,6 @@ function hydrateNodes(root) {
   walk(root, root.parentId || null);
 }
 
-function renderCrumbs() {
-  crumbsEl.textContent = state.path.map((n) => n.title || 'Bookmarks').join(' / ');
-  backBtn.disabled = state.path.length <= 1;
-}
-
 function clearFlyouts() {
   state.activeFlyouts.forEach((el) => el.remove());
   state.activeFlyouts = [];
@@ -185,12 +188,50 @@ function clearFlyouts() {
   state.flyoutTimers.clear();
 }
 
-function renderList(children) {
+function createSeparator() {
+  const sep = document.createElement('div');
+  sep.className = 'menu-sep';
+  sep.setAttribute('role', 'separator');
+  return sep;
+}
+
+function createBackItem() {
+  const item = itemTemplate.content.firstElementChild.cloneNode(true);
+  item.classList.add('back');
+  item.draggable = false;
+  item.querySelector('.item-icon').textContent = '\u2039';
+  item.querySelector('.item-title').textContent = 'Back';
+  item.querySelector('.item-meta').textContent = '';
+  item.addEventListener('click', async (ev) => {
+    ev.stopPropagation();
+    hideContextMenu();
+    await goBack();
+  });
+  return item;
+}
+
+function renderList(children, opts = {}) {
   clearFlyouts();
   listEl.innerHTML = '';
 
   const ordered = sortedByIndex(children);
+  const showRootVirtuals = opts.includeRootVirtuals !== false && isRootView();
+  const virtualFolders = showRootVirtuals ? getVirtualRootFolders() : [];
+
+  if (!isRootView()) {
+    listEl.append(createBackItem(), createSeparator());
+  }
+
+  virtualFolders.forEach((node) => {
+    listEl.append(createItem(node, 'virtual-root'));
+  });
+
+  if (virtualFolders.length && ordered.length) {
+    listEl.append(createSeparator());
+  }
+
   if (!ordered.length) {
+    if (virtualFolders.length) return;
     const empty = document.createElement('div');
     empty.className = 'empty';
     empty.textContent = 'No bookmarks in this folder';
@@ -230,6 +271,7 @@ async function openBookmarkWithModifiers(node, ev = null) {
 
 function createItem(node, source = 'main') {
   const item = itemTemplate.content.firstElementChild.cloneNode(true);
+  const virtualRoot = source === 'virtual-root';
   if (!node) {
     item.classList.add('folder');
     item.querySelector('.item-title').textContent = 'Untitled';
@@ -238,6 +280,10 @@ function createItem(node, source = 'main') {
   }
 
   item.classList.add(isFolder(node) ? 'folder' : 'bookmark');
+  if (virtualRoot) {
+    item.classList.add('virtual-root');
+    item.draggable = false;
+  }
   item.dataset.nodeId = node.id;
   item.dataset.source = source;
   item.querySelector('.item-title').textContent = node.title || (node.url || 'Untitled');
@@ -280,10 +326,15 @@ function createItem(node, source = 'main') {
   item.addEventListener('contextmenu', (ev) => {
     ev.preventDefault();
     ev.stopPropagation();
+    if (virtualRoot) return;
     openContextMenu(ev.clientX, ev.clientY, node);
   });
 
   item.addEventListener('dragstart', (ev) => {
+    if (virtualRoot) {
+      ev.preventDefault();
+      return;
+    }
     state.drag = { id: node.id, sourceFolderId: state.currentFolderId };
     ev.dataTransfer.effectAllowed = 'move';
     ev.dataTransfer.setData('text/plain', node.id);
@@ -297,6 +348,7 @@ function createItem(node, source = 'main') {
   });
 
   item.addEventListener('dragover', (ev) => {
+    if (virtualRoot) return;
     if (!state.drag || state.drag.id === node.id) return;
     ev.preventDefault();
     const rect = item.getBoundingClientRect();
@@ -311,6 +363,7 @@ function createItem(node, source = 'main') {
   });
 
   item.addEventListener('drop', async (ev) => {
+    if (virtualRoot) return;
     ev.preventDefault();
     item.classList.remove('drop-before', 'drop-after');
 
@@ -558,12 +611,22 @@ async function cloneNode(sourceNode, parentId) {
 
 async function refreshCurrent() {
   if (!state.currentFolderId) return;
+  const [treeRoot] = await api.getTree();
+  state.topLevelFolders = treeRoot?.children || [];
+  hydrateNodes({ ...treeRoot, parentId: null });
   await enterFolder(state.currentFolderId, true);
   const subtree = await api.getSubTree(state.currentFolderId);
   const folder = subtree[0];
-  if (folder) {
+  if (folder && folder.id === state.rootFolderId) {
     await saveSnapshot(folder);
   }
+}
+
+async function goBack() {
+  if (isRootView()) return;
+  const previous = state.path.length > 1 ? state.path[state.path.length - 2] : null;
+  const targetId = previous && previous.parentId !== null ? previous.id : state.rootFolderId;
+  await enterFolder(targetId, true);
 }
 
 listEl.addEventListener('contextmenu', (ev) => {
@@ -575,14 +638,6 @@ listEl.addEventListener('contextmenu', (ev) => {
     }
   }
 });
-
-backBtn.addEventListener('click', async () => {
-  if (state.path.length <= 1) return;
-  const previous = state.path[state.path.length - 2];
-  await enterFolder(previous.id, true);
-});
-
-refreshBtn.addEventListener('click', refreshCurrent);
 
 document.addEventListener('click', () => {
   hideContextMenu();
@@ -611,6 +666,7 @@ chrome.bookmarks.onRemoved.addListener(queueRefresh);
 
 window.__popupTest = {
   getState: () => ({
+    rootFolderId: state.rootFolderId,
     currentFolderId: state.currentFolderId,
     flyoutCount: state.activeFlyouts.length,
     contextOpen: !contextMenuEl.hidden,
@@ -631,9 +687,24 @@ window.__popupTest = {
   openFlyoutById: async (folderId) => {
     const row = document.querySelector(`.item[data-node-id=\"${CSS.escape(folderId)}\"]`);
     const node = state.nodesById.get(folderId);
-    if (!row || !node || !isFolder(node)) return false;
+    if (!row || !node || !isFolder(node)) {
+      return {
+        opened: false,
+        hasRow: Boolean(row),
+        hasNode: Boolean(node),
+        isFolder: isFolder(node),
+        currentFolderId: state.currentFolderId,
+      };
+    }
     await openFlyout(row, node, 0);
-    return true;
+    return {
+      opened: state.activeFlyouts.length > 0,
+      hasRow: true,
+      hasNode: true,
+      isFolder: true,
+      currentFolderId: state.currentFolderId,
+      flyoutCount: state.activeFlyouts.length,
+    };
   },
   refreshCurrent,
 };
