@@ -460,13 +460,13 @@ async function main() {
     );
     must(reordered, 'Drag-drop reorder failed.');
 
-    const hoverFolderNavigation = await cdp.eval(
+    const clickFolderNavigation = await cdp.eval(
       sessionId,
       `
       (async () => {
         await window.__popupTest.refreshCurrent();
         await new Promise((r) => setTimeout(r, 300));
-        const result = await window.__popupTest.hoverOpenFolderById(${JSON.stringify(fixture.ids.folder)});
+        const result = await window.__popupTest.clickOpenFolderById(${JSON.stringify(fixture.ids.folder)});
         for (let i = 0; i < 20; i++) {
           const state = window.__popupTest.getState();
           if (state.currentFolderId === ${JSON.stringify(fixture.ids.folder)}) {
@@ -491,8 +491,8 @@ async function main() {
       `,
     );
     must(
-      hoverFolderNavigation.opened && hoverFolderNavigation.childVisible && hoverFolderNavigation.backWorks,
-      `Hover folder navigation did not show expected folder content: ${JSON.stringify(hoverFolderNavigation)}`,
+      clickFolderNavigation.opened && clickFolderNavigation.childVisible && clickFolderNavigation.backWorks,
+      `Click folder navigation did not show expected folder content: ${JSON.stringify(clickFolderNavigation)}`,
     );
 
     console.log(`PASS: Extension UI and interactions verified in live browser: ${BROWSER_BIN}`);

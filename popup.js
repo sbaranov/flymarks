@@ -15,7 +15,6 @@ const state = {
   nodesById: new Map(),
   clipboard: null,
   drag: null,
-  folderHoverTimer: null,
   contextNodeId: null,
 };
 
@@ -179,11 +178,6 @@ function hydrateNodes(root) {
   walk(root, root.parentId || null);
 }
 
-function clearFolderHover() {
-  clearTimeout(state.folderHoverTimer);
-  state.folderHoverTimer = null;
-}
-
 function createSeparator() {
   const sep = document.createElement('div');
   sep.className = 'menu-sep';
@@ -207,7 +201,6 @@ function createBackItem() {
 }
 
 function renderList(children, opts = {}) {
-  clearFolderHover();
   listEl.innerHTML = '';
 
   const ordered = sortedByIndex(children);
@@ -305,7 +298,6 @@ function createItem(node, source = 'main') {
   item.addEventListener('click', async (ev) => {
     ev.stopPropagation();
     hideContextMenu();
-    clearFolderHover();
     if (isFolder(node)) {
       await enterFolder(node.id);
       return;
@@ -323,7 +315,6 @@ function createItem(node, source = 'main') {
   item.addEventListener('contextmenu', (ev) => {
     ev.preventDefault();
     ev.stopPropagation();
-    clearFolderHover();
     if (virtualRoot) return;
     openContextMenu(ev.clientX, ev.clientY, node);
   });
@@ -379,22 +370,7 @@ function createItem(node, source = 'main') {
     await refreshCurrent();
   });
 
-  if (isFolder(node)) {
-    item.addEventListener('mouseenter', () => scheduleFolderHoverOpen(node));
-    item.addEventListener('mouseleave', clearFolderHover);
-  }
-
   return item;
-}
-
-function scheduleFolderHoverOpen(folderNode) {
-  clearFolderHover();
-  if (!folderNode?.id || folderNode.id === state.currentFolderId) return;
-
-  state.folderHoverTimer = setTimeout(async () => {
-    hideContextMenu();
-    await enterFolder(folderNode.id);
-  }, 220);
 }
 
 function hideContextMenu() {
@@ -606,13 +582,11 @@ listEl.addEventListener('contextmenu', (ev) => {
 
 document.addEventListener('click', () => {
   hideContextMenu();
-  clearFolderHover();
 });
 
 document.addEventListener('keydown', (ev) => {
   if (ev.key === 'Escape') {
     hideContextMenu();
-    clearFolderHover();
   }
 });
 
@@ -633,7 +607,6 @@ window.__popupTest = {
   getState: () => ({
     rootFolderId: state.rootFolderId,
     currentFolderId: state.currentFolderId,
-    folderHoverPending: Boolean(state.folderHoverTimer),
     contextOpen: !contextMenuEl.hidden,
   }),
   renderNodes: (nodes) => {
@@ -649,7 +622,7 @@ window.__popupTest = {
     await refreshCurrent();
     return true;
   },
-  hoverOpenFolderById: async (folderId) => {
+  clickOpenFolderById: async (folderId) => {
     const row = document.querySelector(`.item[data-node-id=\"${CSS.escape(folderId)}\"]`);
     const node = state.nodesById.get(folderId);
     if (!row || !node || !isFolder(node)) {
@@ -661,7 +634,7 @@ window.__popupTest = {
         currentFolderId: state.currentFolderId,
       };
     }
-    scheduleFolderHoverOpen(node);
+    row.click();
     for (let i = 0; i < 20; i++) {
       if (state.currentFolderId === folderId) break;
       await new Promise((r) => setTimeout(r, 80));
@@ -672,7 +645,6 @@ window.__popupTest = {
       hasNode: true,
       isFolder: true,
       currentFolderId: state.currentFolderId,
-      folderHoverPending: Boolean(state.folderHoverTimer),
     };
   },
   refreshCurrent,
