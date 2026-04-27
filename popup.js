@@ -2,7 +2,6 @@ const listEl = document.getElementById('bookmark-list');
 const contextMenuEl = document.getElementById('context-menu');
 const contextTitleEl = document.getElementById('context-title');
 const contextItemsEl = document.getElementById('context-items');
-const flyoutLayerEl = document.getElementById('flyout-layer');
 const itemTemplate = document.getElementById('item-template');
 
 const SNAPSHOT_KEY = 'bookmarksBarSnapshotV1';
@@ -16,8 +15,7 @@ const state = {
   nodesById: new Map(),
   clipboard: null,
   drag: null,
-  flyoutTimers: new Map(),
-  activeFlyouts: [],
+  folderHoverTimer: null,
   contextNodeId: null,
 };
 
@@ -181,11 +179,9 @@ function hydrateNodes(root) {
   walk(root, root.parentId || null);
 }
 
-function clearFlyouts() {
-  state.activeFlyouts.forEach((el) => el.remove());
-  state.activeFlyouts = [];
-  state.flyoutTimers.forEach((t) => clearTimeout(t));
-  state.flyoutTimers.clear();
+function clearFolderHover() {
+  clearTimeout(state.folderHoverTimer);
+  state.folderHoverTimer = null;
 }
 
 function createSeparator() {
@@ -211,7 +207,7 @@ function createBackItem() {
 }
 
 function renderList(children, opts = {}) {
-  clearFlyouts();
+  clearFolderHover();
   listEl.innerHTML = '';
 
   const ordered = sortedByIndex(children);
@@ -309,6 +305,7 @@ function createItem(node, source = 'main') {
   item.addEventListener('click', async (ev) => {
     ev.stopPropagation();
     hideContextMenu();
+    clearFolderHover();
     if (isFolder(node)) {
       await enterFolder(node.id);
       return;
@@ -326,6 +323,7 @@ function createItem(node, source = 'main') {
   item.addEventListener('contextmenu', (ev) => {
     ev.preventDefault();
     ev.stopPropagation();
+    clearFolderHover();
     if (virtualRoot) return;
     openContextMenu(ev.clientX, ev.clientY, node);
   });
@@ -382,54 +380,21 @@ function createItem(node, source = 'main') {
   });
 
   if (isFolder(node)) {
-    item.addEventListener('mouseenter', () => scheduleFlyout(item, node));
+    item.addEventListener('mouseenter', () => scheduleFolderHoverOpen(node));
+    item.addEventListener('mouseleave', clearFolderHover);
   }
 
   return item;
 }
 
-function scheduleFlyout(anchorEl, folderNode) {
-  clearTimeout(state.flyoutTimers.get(folderNode.id));
-  const timer = setTimeout(async () => {
-    await openFlyout(anchorEl, folderNode, 0);
+function scheduleFolderHoverOpen(folderNode) {
+  clearFolderHover();
+  if (!folderNode?.id || folderNode.id === state.currentFolderId) return;
+
+  state.folderHoverTimer = setTimeout(async () => {
+    hideContextMenu();
+    await enterFolder(folderNode.id);
   }, 220);
-  state.flyoutTimers.set(folderNode.id, timer);
-}
-
-async function openFlyout(anchorEl, folderNode, depth = 0) {
-  if (!folderNode?.id) return;
-
-  const subtree = await api.getSubTree(folderNode.id);
-  const folder = subtree[0];
-  if (!folder || !isFolder(folder)) return;
-
-  const children = sortedByIndex(folder.children || []);
-
-  state.activeFlyouts.slice(depth).forEach((el) => el.remove());
-  state.activeFlyouts = state.activeFlyouts.slice(0, depth);
-
-  if (!children.length) return;
-
-  const flyout = document.createElement('div');
-  flyout.className = 'flyout';
-  flyout.dataset.depth = String(depth);
-
-  children.forEach((child) => {
-    const row = createItem(child, 'flyout');
-    row.draggable = false;
-    if (isFolder(child)) {
-      row.addEventListener('mouseenter', () => openFlyout(row, child, depth + 1));
-    }
-    flyout.append(row);
-  });
-
-  const rect = anchorEl.getBoundingClientRect();
-  const left = Math.min(window.innerWidth - 280, rect.right + 1 + depth * 3);
-  const top = Math.max(0, Math.min(window.innerHeight - 360, rect.top));
-  flyout.style.left = `${left}px`;
-  flyout.style.top = `${top}px`;
-  flyoutLayerEl.append(flyout);
-  state.activeFlyouts.push(flyout);
 }
 
 function hideContextMenu() {
@@ -641,13 +606,13 @@ listEl.addEventListener('contextmenu', (ev) => {
 
 document.addEventListener('click', () => {
   hideContextMenu();
-  clearFlyouts();
+  clearFolderHover();
 });
 
 document.addEventListener('keydown', (ev) => {
   if (ev.key === 'Escape') {
     hideContextMenu();
-    clearFlyouts();
+    clearFolderHover();
   }
 });
 
@@ -668,7 +633,7 @@ window.__popupTest = {
   getState: () => ({
     rootFolderId: state.rootFolderId,
     currentFolderId: state.currentFolderId,
-    flyoutCount: state.activeFlyouts.length,
+    folderHoverPending: Boolean(state.folderHoverTimer),
     contextOpen: !contextMenuEl.hidden,
   }),
   renderNodes: (nodes) => {
@@ -684,7 +649,7 @@ window.__popupTest = {
     await refreshCurrent();
     return true;
   },
-  openFlyoutById: async (folderId) => {
+  hoverOpenFolderById: async (folderId) => {
     const row = document.querySelector(`.item[data-node-id=\"${CSS.escape(folderId)}\"]`);
     const node = state.nodesById.get(folderId);
     if (!row || !node || !isFolder(node)) {
@@ -696,14 +661,18 @@ window.__popupTest = {
         currentFolderId: state.currentFolderId,
       };
     }
-    await openFlyout(row, node, 0);
+    scheduleFolderHoverOpen(node);
+    for (let i = 0; i < 20; i++) {
+      if (state.currentFolderId === folderId) break;
+      await new Promise((r) => setTimeout(r, 80));
+    }
     return {
-      opened: state.activeFlyouts.length > 0,
+      opened: state.currentFolderId === folderId,
       hasRow: true,
       hasNode: true,
       isFolder: true,
       currentFolderId: state.currentFolderId,
-      flyoutCount: state.activeFlyouts.length,
+      folderHoverPending: Boolean(state.folderHoverTimer),
     };
   },
   refreshCurrent,

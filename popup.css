@@ -37,16 +37,15 @@ html,
 body {
   margin: 0;
   width: 360px;
-  min-height: 420px;
   max-height: 580px;
-  overflow: hidden;
+  overflow: auto;
   font: var(--font);
   color: var(--text);
   background: var(--bg);
 }
 
 #app {
-  height: 100%;
+  max-height: 580px;
   display: flex;
   flex-direction: column;
 }
@@ -196,27 +195,6 @@ body {
   height: 1px;
   background: var(--separator);
   margin: 4px 0;
-}
-
-#flyout-layer {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 100;
-}
-
-.flyout {
-  position: fixed;
-  min-width: 220px;
-  max-width: 300px;
-  max-height: 360px;
-  overflow: auto;
-  padding: 4px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  pointer-events: auto;
 }
 
 .empty {

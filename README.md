@@ -1,6 +1,6 @@
 # Bookmarks Bar Extension
 
-Chrome extension that renders Bookmarks Bar entries in a Chrome-like popup menu with folder flyouts, context actions, and bookmark operations.
+Chrome extension that renders Bookmarks Bar entries in a Chrome-like popup menu with folder navigation, context actions, and bookmark operations.
 
 ## Install Chrome for Testing
 
@@ -128,7 +128,7 @@ Ad hoc Chrome screenshots should be named `chrome-*.png`; this convention is ign
 ### Important Caveats
 
 - Stable Google Chrome on this machine blocks `--load-extension`/`--disable-extensions-except` in this automation setup, so use Chrome for Testing.
-- Test runner validates core interactions (render, open, context action, reorder, flyout). It is not a pixel-perfect visual diff test.
+- Test runner validates core interactions (render, open, context action, reorder, folder navigation). It is not a pixel-perfect visual diff test.
 - The extension uses Chrome APIs (`chrome.bookmarks`, `chrome.tabs`, `chrome.windows`) and must run as an unpacked extension in a Chromium-based browser.
 
 ## Browser Testing Architecture Notes

@@ -460,23 +460,40 @@ async function main() {
     );
     must(reordered, 'Drag-drop reorder failed.');
 
-    const hoverFlyout = await cdp.eval(
+    const hoverFolderNavigation = await cdp.eval(
       sessionId,
       `
       (async () => {
-        const result = await window.__popupTest.openFlyoutById(${JSON.stringify(fixture.ids.folder)});
+        await window.__popupTest.refreshCurrent();
+        await new Promise((r) => setTimeout(r, 300));
+        const result = await window.__popupTest.hoverOpenFolderById(${JSON.stringify(fixture.ids.folder)});
         for (let i = 0; i < 20; i++) {
           const state = window.__popupTest.getState();
-          if (state.flyoutCount > 0) {
-            return { ...result, flyoutCount: state.flyoutCount };
+          if (state.currentFolderId === ${JSON.stringify(fixture.ids.folder)}) {
+            const childVisible = [...document.querySelectorAll('.item-title')].some((el) =>
+              el.textContent.includes(${JSON.stringify(fixture.names.child)})
+            );
+            document.querySelector('#bookmark-list > .item.back')?.click();
+            for (let j = 0; j < 20; j++) {
+              if (window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId) break;
+              await new Promise((r) => setTimeout(r, 80));
+            }
+            return {
+              ...result,
+              childVisible,
+              backWorks: window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId,
+            };
           }
           await new Promise((r) => setTimeout(r, 80));
         }
-        return { ...result, flyoutCount: window.__popupTest.getState().flyoutCount };
+        return { ...result, currentFolderId: window.__popupTest.getState().currentFolderId };
       })();
       `,
     );
-    must(hoverFlyout.flyoutCount > 0, `Hover flyout did not open expected folder content: ${JSON.stringify(hoverFlyout)}`);
+    must(
+      hoverFolderNavigation.opened && hoverFolderNavigation.childVisible && hoverFolderNavigation.backWorks,
+      `Hover folder navigation did not show expected folder content: ${JSON.stringify(hoverFolderNavigation)}`,
+    );
 
     console.log(`PASS: Extension UI and interactions verified in live browser: ${BROWSER_BIN}`);
   } finally {
