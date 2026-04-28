@@ -424,7 +424,7 @@ async function main() {
           'Open All in New Window',
           'Open All in Incognito Window',
           'Open All in New Tab Group',
-          'Edit...',
+          'Rename...',
           'Open in Bookmarks Manager',
           'Cut',
           'Copy',
@@ -793,7 +793,7 @@ async function main() {
       `Meta-click behavior mismatch: ${JSON.stringify(clickBehavior.meta)}`,
     );
 
-    const editRenamesBookmark = await cdp.eval(
+    const renameBookmark = await cdp.eval(
       sessionId,
       `
       (async () => {
@@ -811,10 +811,10 @@ async function main() {
           button: 2,
         }));
 
-        const editBtn = [...document.querySelectorAll('#bookmark-list > .item.context-action')].find((el) =>
-          el.textContent.trim() === 'Edit...'
+        const renameBtn = [...document.querySelectorAll('#bookmark-list > .item.context-action')].find((el) =>
+          el.textContent.trim() === 'Rename...'
         );
-        if (!editBtn) return { opened: false, hasEdit: false };
+        if (!renameBtn) return { opened: false, hasRename: false };
 
         const orig = {
           prompt: window.prompt,
@@ -822,9 +822,9 @@ async function main() {
           create: chrome.tabs.create,
           close: window.close,
         };
-        const calls = { prompt: null, update: null, create: null, closeCount: 0 };
+        const calls = { prompts: [], update: null, create: null, closeCount: 0 };
         window.prompt = (message, defaultValue) => {
-          calls.prompt = { message, defaultValue };
+          calls.prompts.push({ message, defaultValue });
           return 'Renamed by test';
         };
         chrome.bookmarks.update = async (id, changes) => {
@@ -837,7 +837,7 @@ async function main() {
         };
         window.close = () => { calls.closeCount += 1; };
 
-        editBtn.click();
+        renameBtn.click();
         await new Promise((r) => setTimeout(r, 80));
 
         window.prompt = orig.prompt;
@@ -854,15 +854,17 @@ async function main() {
       `,
     );
     must(
-      editRenamesBookmark.opened &&
-        editRenamesBookmark.calls.prompt?.message === 'Edit bookmark name:' &&
-        editRenamesBookmark.calls.prompt?.defaultValue === fixture.names.a &&
-        editRenamesBookmark.calls.update?.id === fixture.ids.a &&
-        editRenamesBookmark.calls.update?.changes?.title === 'Renamed by test' &&
-        editRenamesBookmark.calls.create === null &&
-        editRenamesBookmark.calls.closeCount === 0 &&
-        !editRenamesBookmark.contextOpen,
-      `Edit did not rename the selected bookmark locally: ${JSON.stringify(editRenamesBookmark)}`,
+      renameBookmark.opened &&
+        renameBookmark.calls.prompts?.length === 1 &&
+        renameBookmark.calls.prompts?.[0]?.message === 'Edit bookmark name:' &&
+        renameBookmark.calls.prompts?.[0]?.defaultValue === fixture.names.a &&
+        renameBookmark.calls.update?.id === fixture.ids.a &&
+        renameBookmark.calls.update?.changes?.title === 'Renamed by test' &&
+        !('url' in (renameBookmark.calls.update?.changes || {})) &&
+        renameBookmark.calls.create === null &&
+        renameBookmark.calls.closeCount === 0 &&
+        !renameBookmark.contextOpen,
+      `Rename did not update only the selected bookmark title locally: ${JSON.stringify(renameBookmark)}`,
     );
 
     const openInBookmarksManager = await cdp.eval(
@@ -997,6 +999,8 @@ async function main() {
     must(
       openAllInTabGroup.ok &&
         openAllInTabGroup.actionLabels.includes('Open All in New Tab Group') &&
+        openAllInTabGroup.actionLabels.includes('Rename...') &&
+        !openAllInTabGroup.actionLabels.includes('Edit...') &&
         openAllInTabGroup.calls.created.length === 1 &&
         openAllInTabGroup.calls.created[0].url === 'https://example.com/child' &&
         openAllInTabGroup.calls.created[0].active === false &&
@@ -1108,7 +1112,7 @@ async function main() {
         'Open in New Tab',
         'Open in New Window',
         'Open in Incognito Window',
-        'Edit...',
+        'Rename...',
         'Open in Bookmarks Manager',
         'Cut',
         'Copy',

@@ -668,7 +668,7 @@ function openContextMenu(_x, _y, node, opts = {}) {
     listEl.append(separator());
   }
 
-  listEl.append(createContextAction('Edit...', async () => {
+  listEl.append(createContextAction('Rename...', async () => {
     const title = prompt(folder ? 'Edit folder name:' : 'Edit bookmark name:', node.title || '');
     if (title === null) return;
     await api.update(node.id, { title });
