@@ -3,9 +3,16 @@ const itemTemplate = document.getElementById('item-template');
 
 const SNAPSHOT_KEY = 'bookmarksBarSnapshotV1';
 const SNAPSHOT_LOCAL_KEY = 'bookmarksBarSnapshotLocalV1';
+const SETTINGS_KEY = 'bookmarksBarSettingsV1';
 const VIRTUAL_APPS_ID = 'virtual:apps';
 const VIRTUAL_TAB_GROUPS_ID = 'virtual:tab-groups';
 const VIRTUAL_TAB_GROUP_PREFIX = 'virtual:tab-group:';
+const DEFAULT_SETTINGS = {
+  showAppsShortcut: true,
+  showTabGroups: true,
+  showOtherBookmarks: true,
+  showMobileBookmarks: true,
+};
 
 const state = {
   rootFolderId: null,
@@ -16,6 +23,7 @@ const state = {
   clipboard: null,
   drag: null,
   contextNodeId: null,
+  settings: { ...DEFAULT_SETTINGS },
 };
 
 const api = {
@@ -92,6 +100,20 @@ async function loadSnapshot() {
   return got[SNAPSHOT_KEY] || null;
 }
 
+async function loadSettings() {
+  const got = await api.storageGet(SETTINGS_KEY);
+  state.settings = { ...DEFAULT_SETTINGS, ...(got[SETTINGS_KEY] || {}) };
+}
+
+async function saveSettings() {
+  await api.storageSet({ [SETTINGS_KEY]: state.settings });
+}
+
+async function setSetting(key, value) {
+  state.settings = { ...state.settings, [key]: value };
+  await saveSettings();
+}
+
 function loadSnapshotSync() {
   try {
     const raw = localStorage.getItem(SNAPSHOT_LOCAL_KEY);
@@ -105,11 +127,18 @@ function loadSnapshotSync() {
 function getVirtualRootFolders() {
   const rootFolders = sortedByIndex(state.topLevelFolders).filter((node) => (
     node.id !== state.rootFolderId &&
-    (node.id === '2' || node.id === '3' || /^(other|mobile) bookmarks$/i.test(node.title || ''))
+    (
+      (state.settings.showOtherBookmarks && (node.id === '2' || /^other bookmarks$/i.test(node.title || ''))) ||
+      (state.settings.showMobileBookmarks && (node.id === '3' || /^mobile bookmarks$/i.test(node.title || '')))
+    )
   ));
   return [
-    { id: VIRTUAL_APPS_ID, title: 'Apps Shortcut', index: -2, virtualType: 'apps' },
-    { id: VIRTUAL_TAB_GROUPS_ID, title: 'Tab Groups', index: -1, virtualType: 'tab-groups-root' },
+    ...(state.settings.showAppsShortcut
+      ? [{ id: VIRTUAL_APPS_ID, title: 'Apps Shortcut', index: -2, virtualType: 'apps' }]
+      : []),
+    ...(state.settings.showTabGroups
+      ? [{ id: VIRTUAL_TAB_GROUPS_ID, title: 'Tab Groups', index: -1, virtualType: 'tab-groups-root' }]
+      : []),
     ...rootFolders,
   ];
 }
@@ -130,6 +159,7 @@ function renderCachedFirstPaintSync() {
 }
 
 async function loadRoot() {
+  await loadSettings();
   const [treeRoot] = await api.getTree();
   const rootChildren = treeRoot?.children || [];
   const bar = rootChildren.find((n) => n.id === '1') ||
@@ -515,7 +545,7 @@ function createContextAction(label, action, opts = {}) {
   const item = itemTemplate.content.firstElementChild.cloneNode(true);
   item.classList.add('context-action');
   item.draggable = false;
-  item.querySelector('.item-icon').textContent = '';
+  item.querySelector('.item-icon').textContent = opts.checked ? '✓' : '';
   item.querySelector('.item-title').textContent = label;
   item.querySelector('.item-meta').textContent = '';
   if (opts.danger) item.classList.add('danger');
@@ -695,6 +725,18 @@ function openContextMenu(_x, _y, node) {
   listEl.append(createContextAction('Open Bookmarks Manager', async () => {
     await api.createTab({ url: getBookmarkManagerUrl(), active: true });
   }, { refresh: false }));
+  listEl.append(createContextAction('Show Apps Shortcut', async () => {
+    await setSetting('showAppsShortcut', !state.settings.showAppsShortcut);
+  }, { checked: state.settings.showAppsShortcut }));
+  listEl.append(createContextAction('Show Tab Groups', async () => {
+    await setSetting('showTabGroups', !state.settings.showTabGroups);
+  }, { checked: state.settings.showTabGroups }));
+  listEl.append(createContextAction('Show Other Bookmarks', async () => {
+    await setSetting('showOtherBookmarks', !state.settings.showOtherBookmarks);
+  }, { checked: state.settings.showOtherBookmarks }));
+  listEl.append(createContextAction('Show Mobile Bookmarks', async () => {
+    await setSetting('showMobileBookmarks', !state.settings.showMobileBookmarks);
+  }, { checked: state.settings.showMobileBookmarks }));
 }
 
 async function cloneNode(sourceNode, parentId) {
@@ -787,6 +829,7 @@ window.__popupTest = {
     rootFolderId: state.rootFolderId,
     currentFolderId: state.currentFolderId,
     contextOpen: Boolean(state.contextNodeId),
+    settings: { ...state.settings },
   }),
   renderNodes: (nodes) => {
     renderList(nodes);

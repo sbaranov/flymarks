@@ -345,6 +345,97 @@ async function main() {
     );
     must(rootNavigation.backWorks, `Back row did not return to Bookmarks Bar root: ${JSON.stringify(rootNavigation)}`);
 
+    const virtualSettingToggles = await cdp.eval(
+      sessionId,
+      `
+      (async () => {
+        await window.__popupTest.refreshCurrent();
+
+        const titles = () => [...document.querySelectorAll('#bookmark-list > .item .item-title')]
+          .map((el) => el.textContent.trim());
+        const clickToggle = async (label) => {
+          const list = document.querySelector('#bookmark-list');
+          list.dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+            clientX: 40,
+            clientY: 40,
+            button: 2,
+          }));
+          await new Promise((r) => setTimeout(r, 80));
+          const action = [...document.querySelectorAll('#bookmark-list > .item.context-action')].find((row) =>
+            row.querySelector('.item-title')?.textContent.trim() === label
+          );
+          const iconBefore = action?.querySelector('.item-icon')?.textContent.trim() || '';
+          action?.click();
+          await new Promise((r) => setTimeout(r, 120));
+          return {
+            found: Boolean(action),
+            iconBefore,
+            state: window.__popupTest.getState().settings,
+            titles: titles(),
+          };
+        };
+
+        const initial = { state: window.__popupTest.getState().settings, titles: titles() };
+        const appsOff = await clickToggle('Show Apps Shortcut');
+        const tabsOff = await clickToggle('Show Tab Groups');
+        const otherOff = await clickToggle('Show Other Bookmarks');
+        const mobileOff = await clickToggle('Show Mobile Bookmarks');
+        const appsOn = await clickToggle('Show Apps Shortcut');
+        const tabsOn = await clickToggle('Show Tab Groups');
+        const otherOn = await clickToggle('Show Other Bookmarks');
+        const mobileOn = await clickToggle('Show Mobile Bookmarks');
+
+        return { initial, appsOff, tabsOff, otherOff, mobileOff, appsOn, tabsOn, otherOn, mobileOn };
+      })();
+      `,
+    );
+    const hasMobileBookmarksRoot = fixture.topLevelVirtuals.some((n) => n.title === 'Mobile Bookmarks');
+    must(
+      virtualSettingToggles.initial.state.showAppsShortcut === true &&
+        virtualSettingToggles.initial.state.showTabGroups === true &&
+        virtualSettingToggles.initial.state.showOtherBookmarks === true &&
+        virtualSettingToggles.initial.state.showMobileBookmarks === true &&
+        virtualSettingToggles.initial.titles.includes('Apps Shortcut') &&
+        virtualSettingToggles.initial.titles.includes('Tab Groups') &&
+        virtualSettingToggles.initial.titles.includes('Other Bookmarks') &&
+        (!hasMobileBookmarksRoot || virtualSettingToggles.initial.titles.includes('Mobile Bookmarks')) &&
+        virtualSettingToggles.appsOff.found &&
+        virtualSettingToggles.appsOff.iconBefore === '✓' &&
+        virtualSettingToggles.appsOff.state.showAppsShortcut === false &&
+        !virtualSettingToggles.appsOff.titles.includes('Apps Shortcut') &&
+        virtualSettingToggles.tabsOff.found &&
+        virtualSettingToggles.tabsOff.iconBefore === '✓' &&
+        virtualSettingToggles.tabsOff.state.showTabGroups === false &&
+        !virtualSettingToggles.tabsOff.titles.includes('Tab Groups') &&
+        virtualSettingToggles.otherOff.found &&
+        virtualSettingToggles.otherOff.iconBefore === '✓' &&
+        virtualSettingToggles.otherOff.state.showOtherBookmarks === false &&
+        !virtualSettingToggles.otherOff.titles.includes('Other Bookmarks') &&
+        virtualSettingToggles.mobileOff.found &&
+        virtualSettingToggles.mobileOff.iconBefore === '✓' &&
+        virtualSettingToggles.mobileOff.state.showMobileBookmarks === false &&
+        (!hasMobileBookmarksRoot || !virtualSettingToggles.mobileOff.titles.includes('Mobile Bookmarks')) &&
+        virtualSettingToggles.appsOn.found &&
+        virtualSettingToggles.appsOn.iconBefore === '' &&
+        virtualSettingToggles.appsOn.state.showAppsShortcut === true &&
+        virtualSettingToggles.appsOn.titles.includes('Apps Shortcut') &&
+        virtualSettingToggles.tabsOn.found &&
+        virtualSettingToggles.tabsOn.iconBefore === '' &&
+        virtualSettingToggles.tabsOn.state.showTabGroups === true &&
+        virtualSettingToggles.tabsOn.titles.includes('Tab Groups') &&
+        virtualSettingToggles.otherOn.found &&
+        virtualSettingToggles.otherOn.iconBefore === '' &&
+        virtualSettingToggles.otherOn.state.showOtherBookmarks === true &&
+        virtualSettingToggles.otherOn.titles.includes('Other Bookmarks') &&
+        virtualSettingToggles.mobileOn.found &&
+        virtualSettingToggles.mobileOn.iconBefore === '' &&
+        virtualSettingToggles.mobileOn.state.showMobileBookmarks === true &&
+        (!hasMobileBookmarksRoot || virtualSettingToggles.mobileOn.titles.includes('Mobile Bookmarks')),
+      `Virtual root settings did not toggle correctly: ${JSON.stringify(virtualSettingToggles)}`,
+    );
+
     const tabGroupsVirtualFolder = await cdp.eval(
       sessionId,
       `
@@ -863,6 +954,10 @@ async function main() {
         'Add Page...',
         'Add Folder...',
         'Open Bookmarks Manager',
+        'Show Apps Shortcut',
+        'Show Tab Groups',
+        'Show Other Bookmarks',
+        'Show Mobile Bookmarks',
       ]),
       `Bookmark context menu labels were not Chrome-like: ${JSON.stringify(deletedViaContext.actionLabels)}`,
     );
