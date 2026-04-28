@@ -463,6 +463,49 @@ async function main() {
       `Virtual folder context menu mismatch: ${JSON.stringify(virtualFolderContextMenu)}`,
     );
 
+    const realVirtualFolderOpenOptions = await cdp.eval(
+      sessionId,
+      `
+      (async () => {
+        await window.__popupTest.refreshCurrent();
+        const row = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')].find((el) =>
+          ['Other Bookmarks', 'Mobile Bookmarks'].includes(el.querySelector('.item-title')?.textContent.trim())
+        );
+        row?.dispatchEvent(new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: 80,
+          clientY: 80,
+          button: 2,
+        }));
+        await new Promise((r) => setTimeout(r, 80));
+        const actions = [...document.querySelectorAll('#bookmark-list > .item.context-action')].map((action) => ({
+          label: action.querySelector('.item-title')?.textContent.trim(),
+          disabled: action.classList.contains('disabled'),
+        }));
+        const byLabel = Object.fromEntries(actions.map((action) => [action.label, action]));
+        const openOptionsEnabled = [
+          'Open All',
+          'Open All in New Window',
+          'Open All in Incognito Window',
+          'Open All in New Tab Group',
+        ].every((label) => byLabel[label]?.disabled === false);
+
+        return {
+          foundRow: Boolean(row),
+          title: row?.querySelector('.item-title')?.textContent.trim() || '',
+          actions,
+          openOptionsEnabled,
+        };
+      })();
+      `,
+    );
+    must(
+      realVirtualFolderOpenOptions.foundRow &&
+        realVirtualFolderOpenOptions.openOptionsEnabled,
+      `Other/Mobile Bookmarks virtual folder open options were disabled: ${JSON.stringify(realVirtualFolderOpenOptions)}`,
+    );
+
     const virtualSettingToggles = await cdp.eval(
       sessionId,
       `

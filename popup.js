@@ -651,6 +651,7 @@ function openContextMenu(_x, _y, node, opts = {}) {
 
   const folder = isFolder(node);
   const virtualContext = Boolean(opts.virtual || isVirtualNode(node) || node.virtualType);
+  const syntheticVirtualContext = virtualContext && isVirtualFolderId(node.id);
   const addEnabled = !virtualContext || (folder && !isVirtualFolderId(node.id));
   listEl.append(createContextBackItem(node), createSeparator());
 
@@ -660,10 +661,10 @@ function openContextMenu(_x, _y, node, opts = {}) {
     listEl.append(createContextAction('Open in Incognito Window', () => api.createWindow({ url: node.url, incognito: true }), { refresh: false }));
     listEl.append(separator());
   } else {
-    listEl.append(createContextAction('Open All', () => openAllInFolder(node.id, 'tab'), { refresh: false, closePopup: true, disabled: virtualContext }));
-    listEl.append(createContextAction('Open All in New Window', () => openAllInFolder(node.id, 'window'), { refresh: false, disabled: virtualContext }));
-    listEl.append(createContextAction('Open All in Incognito Window', () => openAllInFolder(node.id, 'incognito'), { refresh: false, disabled: virtualContext }));
-    listEl.append(createContextAction('Open All in New Tab Group', () => openAllInFolder(node.id, 'group', node.title || 'Bookmarks'), { refresh: false, closePopup: true, disabled: virtualContext }));
+    listEl.append(createContextAction('Open All', () => openAllInFolder(node.id, 'tab'), { refresh: false, closePopup: true, disabled: syntheticVirtualContext }));
+    listEl.append(createContextAction('Open All in New Window', () => openAllInFolder(node.id, 'window'), { refresh: false, disabled: syntheticVirtualContext }));
+    listEl.append(createContextAction('Open All in Incognito Window', () => openAllInFolder(node.id, 'incognito'), { refresh: false, disabled: syntheticVirtualContext }));
+    listEl.append(createContextAction('Open All in New Tab Group', () => openAllInFolder(node.id, 'group', node.title || 'Bookmarks'), { refresh: false, closePopup: true, disabled: syntheticVirtualContext }));
     listEl.append(separator());
   }
 
