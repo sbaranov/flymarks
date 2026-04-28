@@ -314,14 +314,15 @@ async function main() {
           !document.querySelector('#back-btn') &&
           !document.querySelector('#refresh-btn');
 
-        const virtualTitles = ${JSON.stringify(['Apps Shortcut', 'Tab Groups', ...fixture.topLevelVirtuals.map((n) => n.title)])};
+        const virtualTitles = ${JSON.stringify(['Apps', 'Tab Groups', ...fixture.topLevelVirtuals.map((n) => n.title)])};
         const rowTitles = [...document.querySelectorAll('#bookmark-list > .item .item-title')]
           .map((el) => el.textContent.trim());
         const virtualsFirst = virtualTitles.every((title, index) => rowTitles[index] === title);
 
         const appsShortcut = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')]
-          .find((row) => row.querySelector('.item-title')?.textContent.trim() === 'Apps Shortcut');
+          .find((row) => row.querySelector('.item-title')?.textContent.trim() === 'Apps');
         const appsCounter = appsShortcut?.querySelector('.item-meta')?.textContent.trim() || '';
+        const appsIconClass = appsShortcut?.classList.contains('virtual-apps') || false;
         const orig = { create: chrome.tabs.create, close: window.close };
         const appsCalls = { create: null, closeCount: 0 };
         chrome.tabs.create = async (payload) => {
@@ -336,6 +337,7 @@ async function main() {
 
         const tabGroupsVirtual = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')]
           .find((row) => row.querySelector('.item-title')?.textContent.trim() === 'Tab Groups');
+        const tabGroupsIconClass = tabGroupsVirtual?.classList.contains('virtual-tab-groups-root') || false;
         tabGroupsVirtual.click();
         for (let i = 0; i < 20; i++) {
           if (document.querySelector('#bookmark-list > .item.back')) break;
@@ -352,7 +354,7 @@ async function main() {
         const backWorks = window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId &&
           !document.querySelector('#bookmark-list > .item.back');
 
-        return { toolbarGone, virtualsFirst, appsCounter, appsCalls, enteredVirtual, virtualBackLabel, backWorks };
+        return { toolbarGone, virtualsFirst, appsCounter, appsIconClass, tabGroupsIconClass, appsCalls, enteredVirtual, virtualBackLabel, backWorks };
       })();
       `,
     );
@@ -360,10 +362,12 @@ async function main() {
     must(rootNavigation.virtualsFirst, `Virtual root folders were not rendered first: ${JSON.stringify(rootNavigation)}`);
     must(
       rootNavigation.appsCounter === '' &&
+      rootNavigation.appsIconClass &&
+      rootNavigation.tabGroupsIconClass &&
       rootNavigation.appsCalls.create?.url === 'chrome://apps/' &&
         rootNavigation.appsCalls.create?.active === true &&
         rootNavigation.appsCalls.closeCount > 0,
-      `Apps Shortcut did not open chrome://apps/: ${JSON.stringify(rootNavigation)}`,
+      `Apps did not open chrome://apps/: ${JSON.stringify(rootNavigation)}`,
     );
     must(rootNavigation.enteredVirtual !== false, `Virtual root folder did not open: ${JSON.stringify(rootNavigation)}`);
     must(
@@ -424,14 +428,14 @@ async function main() {
         virtualSettingToggles.initial.state.showTabGroups === true &&
         virtualSettingToggles.initial.state.showOtherBookmarks === true &&
         virtualSettingToggles.initial.state.showMobileBookmarks === true &&
-        virtualSettingToggles.initial.titles.includes('Apps Shortcut') &&
+        virtualSettingToggles.initial.titles.includes('Apps') &&
         virtualSettingToggles.initial.titles.includes('Tab Groups') &&
         virtualSettingToggles.initial.titles.includes('Other Bookmarks') &&
         (!hasMobileBookmarksRoot || virtualSettingToggles.initial.titles.includes('Mobile Bookmarks')) &&
         virtualSettingToggles.appsOff.found &&
         virtualSettingToggles.appsOff.iconBefore === '✓' &&
         virtualSettingToggles.appsOff.state.showAppsShortcut === false &&
-        !virtualSettingToggles.appsOff.titles.includes('Apps Shortcut') &&
+        !virtualSettingToggles.appsOff.titles.includes('Apps') &&
         virtualSettingToggles.tabsOff.found &&
         virtualSettingToggles.tabsOff.iconBefore === '✓' &&
         virtualSettingToggles.tabsOff.state.showTabGroups === false &&
@@ -447,7 +451,7 @@ async function main() {
         virtualSettingToggles.appsOn.found &&
         virtualSettingToggles.appsOn.iconBefore === '' &&
         virtualSettingToggles.appsOn.state.showAppsShortcut === true &&
-        virtualSettingToggles.appsOn.titles.includes('Apps Shortcut') &&
+        virtualSettingToggles.appsOn.titles.includes('Apps') &&
         virtualSettingToggles.tabsOn.found &&
         virtualSettingToggles.tabsOn.iconBefore === '' &&
         virtualSettingToggles.tabsOn.state.showTabGroups === true &&

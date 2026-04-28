@@ -134,7 +134,7 @@ async function getVirtualRootFolders() {
   ));
   return [
     ...(state.settings.showAppsShortcut
-      ? [{ id: VIRTUAL_APPS_ID, title: 'Apps Shortcut', index: -2, virtualType: 'apps' }]
+      ? [{ id: VIRTUAL_APPS_ID, title: 'Apps', index: -2, virtualType: 'apps' }]
       : []),
     ...(state.settings.showTabGroups
       ? [{
@@ -430,6 +430,7 @@ function createItem(node, source = 'main') {
   item.classList.add(isFolder(node) ? 'folder' : 'bookmark');
   if (virtualNode) {
     item.classList.add('virtual-root');
+    if (node.virtualType) item.classList.add(`virtual-${node.virtualType}`);
     item.draggable = false;
   }
   item.dataset.nodeId = node.id;
