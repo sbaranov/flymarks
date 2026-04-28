@@ -510,7 +510,7 @@ function openContextMenu(_x, _y, node) {
   }
 
   listEl.append(createContextAction('Edit...', async () => {
-    const title = prompt(folder ? 'Folder name:' : 'Bookmark title:', node.title || '');
+    const title = prompt(folder ? 'Edit folder name:' : 'Edit bookmark name:', node.title || '');
     if (title === null) return;
     await api.update(node.id, { title });
   }));

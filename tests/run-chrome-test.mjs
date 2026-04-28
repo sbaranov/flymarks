@@ -506,7 +506,7 @@ async function main() {
     );
     must(
       editRenamesBookmark.opened &&
-        editRenamesBookmark.calls.prompt?.message === 'Bookmark title:' &&
+        editRenamesBookmark.calls.prompt?.message === 'Edit bookmark name:' &&
         editRenamesBookmark.calls.prompt?.defaultValue === fixture.names.a &&
         editRenamesBookmark.calls.update?.id === fixture.ids.a &&
         editRenamesBookmark.calls.update?.changes?.title === 'Renamed by test' &&
