@@ -656,6 +656,7 @@ function openContextMenu(_x, _y, node, opts = {}) {
   const folder = isFolder(node);
   const virtualContext = Boolean(opts.virtual || isVirtualNode(node) || node.virtualType);
   const syntheticVirtualContext = virtualContext && isVirtualFolderId(node.id);
+  const tabGroupContext = node.virtualType === 'tab-group' && Number.isFinite(node.tabGroupId);
   const addEnabled = !virtualContext || (folder && !isVirtualFolderId(node.id));
   listEl.append(createContextBackItem(node), createSeparator());
 
@@ -675,8 +676,12 @@ function openContextMenu(_x, _y, node, opts = {}) {
   listEl.append(createContextAction('Rename...', async () => {
     const title = prompt(folder ? 'Edit folder name:' : 'Edit bookmark name:', node.title || '');
     if (title === null) return;
+    if (tabGroupContext) {
+      await api.updateTabGroup(node.tabGroupId, { title });
+      return;
+    }
     await api.update(node.id, { title });
-  }, { disabled: virtualContext }));
+  }, { disabled: virtualContext && !tabGroupContext }));
   listEl.append(separator());
 
   listEl.append(createContextAction('Cut', async () => {

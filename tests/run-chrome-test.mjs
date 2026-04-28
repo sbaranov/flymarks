@@ -623,7 +623,45 @@ async function main() {
           row.querySelector('.item-title')?.textContent.trim() === 'Codex Test Group'
         );
         const groupCounter = groupRow?.querySelector('.item-meta')?.textContent.trim();
-        groupRow?.click();
+        groupRow?.dispatchEvent(new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: 120,
+          clientY: 120,
+          button: 2,
+        }));
+        await new Promise((r) => setTimeout(r, 80));
+        const renameAction = [...document.querySelectorAll('#bookmark-list > .item.context-action')].find((row) =>
+          row.querySelector('.item-title')?.textContent.trim() === 'Rename...'
+        );
+        const origRename = { prompt: window.prompt, update: chrome.bookmarks.update, updateGroup: chrome.tabGroups.update };
+        const renameCalls = { prompt: null, bookmarkUpdate: null, tabGroupUpdate: null };
+        window.prompt = (message, defaultValue) => {
+          renameCalls.prompt = { message, defaultValue };
+          return 'Renamed Codex Test Group';
+        };
+        chrome.bookmarks.update = async (id, changes) => {
+          renameCalls.bookmarkUpdate = { id, changes };
+          return { id, ...changes };
+        };
+        chrome.tabGroups.update = async (id, changes) => {
+          renameCalls.tabGroupUpdate = { id, changes };
+          return origRename.updateGroup(id, changes);
+        };
+        renameAction?.click();
+        await new Promise((r) => setTimeout(r, 120));
+        window.prompt = origRename.prompt;
+        chrome.bookmarks.update = origRename.update;
+        chrome.tabGroups.update = origRename.updateGroup;
+
+        await window.__popupTest.refreshCurrent();
+        const renamedGroupVisible = [...document.querySelectorAll('#bookmark-list > .item .item-title')]
+          .some((el) => el.textContent.trim() === 'Renamed Codex Test Group');
+        const renamedGroupRow = [...document.querySelectorAll('#bookmark-list > .item')].find((row) =>
+          row.querySelector('.item-title')?.textContent.trim() === 'Renamed Codex Test Group'
+        );
+        const renamedGroupCounter = renamedGroupRow?.querySelector('.item-meta')?.textContent.trim();
+        renamedGroupRow?.click();
         for (let i = 0; i < 20; i++) {
           const found = [...document.querySelectorAll('#bookmark-list > .item.bookmark')].length >= 2;
           if (found) break;
@@ -659,6 +697,11 @@ async function main() {
           rootCounter,
           groupVisible,
           groupCounter,
+          renameActionFound: Boolean(renameAction),
+          renameActionDisabled: renameAction?.classList.contains('disabled') ?? null,
+          renameCalls,
+          renamedGroupVisible,
+          renamedGroupCounter,
           backLabel,
           tabVisible,
           calls,
@@ -671,7 +714,16 @@ async function main() {
       tabGroupsVirtualFolder.groupVisible &&
         Number(tabGroupsVirtualFolder.rootCounter) >= 1 &&
         tabGroupsVirtualFolder.groupCounter === '2' &&
-        tabGroupsVirtualFolder.backLabel === 'Codex Test Group' &&
+        tabGroupsVirtualFolder.renameActionFound &&
+        tabGroupsVirtualFolder.renameActionDisabled === false &&
+        tabGroupsVirtualFolder.renameCalls.prompt?.message === 'Edit folder name:' &&
+        tabGroupsVirtualFolder.renameCalls.prompt?.defaultValue === 'Codex Test Group' &&
+        tabGroupsVirtualFolder.renameCalls.bookmarkUpdate === null &&
+        tabGroupsVirtualFolder.renameCalls.tabGroupUpdate?.id === tabGroupsVirtualFolder.groupId &&
+        tabGroupsVirtualFolder.renameCalls.tabGroupUpdate?.changes?.title === 'Renamed Codex Test Group' &&
+        tabGroupsVirtualFolder.renamedGroupVisible &&
+        tabGroupsVirtualFolder.renamedGroupCounter === '2' &&
+        tabGroupsVirtualFolder.backLabel === 'Renamed Codex Test Group' &&
         tabGroupsVirtualFolder.tabVisible &&
         tabGroupsVirtualFolder.calls.update?.payload?.active === true &&
         tabGroupsVirtualFolder.calls.closeCount > 0 &&
