@@ -260,6 +260,7 @@ async function getVirtualFolder(folderId) {
       return {
         id: `${VIRTUAL_TAB_GROUP_PREFIX}${group.id}`,
         title: group.title || 'Unnamed Group',
+        rawTitle: group.title || '',
         index,
         parentId: VIRTUAL_TAB_GROUPS_ID,
         virtualType: 'tab-group',
@@ -298,6 +299,7 @@ async function getVirtualFolder(folderId) {
     return {
       id: folderId,
       title: group?.title || 'Unnamed Group',
+      rawTitle: group?.title || '',
       parentId: VIRTUAL_TAB_GROUPS_ID,
       virtualType: 'tab-group',
       tabGroupId: groupId,
@@ -674,7 +676,8 @@ function openContextMenu(_x, _y, node, opts = {}) {
   }
 
   listEl.append(createContextAction('Rename...', async () => {
-    const title = prompt(folder ? 'Edit folder name:' : 'Edit bookmark name:', node.title || '');
+    const defaultTitle = tabGroupContext ? (node.rawTitle || '') : (node.title || '');
+    const title = prompt(folder ? 'Edit folder name:' : 'Edit bookmark name:', defaultTitle);
     if (title === null) return;
     if (tabGroupContext) {
       await api.updateTabGroup(node.tabGroupId, { title });

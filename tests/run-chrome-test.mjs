@@ -623,14 +623,16 @@ async function main() {
           row.querySelector('.item-title')?.textContent.trim() === 'Codex Test Group'
         );
         const groupCounter = groupRow?.querySelector('.item-meta')?.textContent.trim();
-        groupRow?.dispatchEvent(new MouseEvent('contextmenu', {
-          bubbles: true,
-          cancelable: true,
-          clientX: 120,
-          clientY: 120,
-          button: 2,
-        }));
-        await new Promise((r) => setTimeout(r, 80));
+        if (groupRow) {
+          groupRow.dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+            clientX: 120,
+            clientY: 120,
+            button: 2,
+          }));
+          await new Promise((r) => setTimeout(r, 80));
+        }
         const renameAction = [...document.querySelectorAll('#bookmark-list > .item.context-action')].find((row) =>
           row.querySelector('.item-title')?.textContent.trim() === 'Rename...'
         );
@@ -729,6 +731,94 @@ async function main() {
         tabGroupsVirtualFolder.calls.closeCount > 0 &&
         tabGroupsVirtualFolder.returnedToRoot,
       `Tab Groups virtual folder did not navigate groups/tabs correctly: ${JSON.stringify(tabGroupsVirtualFolder)}`,
+    );
+
+    const unnamedTabGroupRenameDefault = await cdp.eval(
+      sessionId,
+      `
+      (async () => {
+        const tab = await chrome.tabs.create({ url: 'https://example.com/#codex-unnamed-tab-group', active: false });
+        const groupId = await chrome.tabs.group({ tabIds: [tab.id] });
+        await chrome.tabGroups.update(groupId, { title: '' });
+        await window.__popupTest.refreshCurrent();
+
+        const tabGroupsRow = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')].find((row) =>
+          row.querySelector('.item-title')?.textContent.trim() === 'Tab Groups'
+        );
+        if (!tabGroupsRow) {
+          return { groupId, foundTabGroupsRow: false };
+        }
+        tabGroupsRow.click();
+        for (let i = 0; i < 20; i++) {
+          const found = [...document.querySelectorAll('#bookmark-list > .item')]
+            .some((row) => row.dataset.nodeId === 'virtual:tab-group:' + groupId);
+          if (found) break;
+          await new Promise((r) => setTimeout(r, 80));
+        }
+
+        const unnamedRow = [...document.querySelectorAll('#bookmark-list > .item')].find((row) =>
+          row.dataset.nodeId === 'virtual:tab-group:' + groupId
+        );
+        const displayTitle = unnamedRow?.querySelector('.item-title')?.textContent.trim() || '';
+        if (!unnamedRow) {
+          return {
+            groupId,
+            foundTabGroupsRow: true,
+            foundUnnamedRow: false,
+            rows: [...document.querySelectorAll('#bookmark-list > .item')].map((row) => ({
+              nodeId: row.dataset.nodeId || '',
+              title: row.querySelector('.item-title')?.textContent.trim() || '',
+            })),
+          };
+        }
+        unnamedRow.dispatchEvent(new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: 120,
+          clientY: 120,
+          button: 2,
+        }));
+        await new Promise((r) => setTimeout(r, 80));
+        const renameAction = [...document.querySelectorAll('#bookmark-list > .item.context-action')].find((row) =>
+          row.querySelector('.item-title')?.textContent.trim() === 'Rename...'
+        );
+
+        const origPrompt = window.prompt;
+        const promptCall = { message: null, defaultValue: null };
+        window.prompt = (message, defaultValue) => {
+          promptCall.message = message;
+          promptCall.defaultValue = defaultValue;
+          return null;
+        };
+        renameAction?.click();
+        await new Promise((r) => setTimeout(r, 80));
+        window.prompt = origPrompt;
+
+        document.querySelector('#bookmark-list > .item.back')?.click();
+        for (let i = 0; i < 20; i++) {
+          if (window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId) break;
+          await new Promise((r) => setTimeout(r, 80));
+        }
+
+        return {
+          groupId,
+          displayTitle,
+          renameActionFound: Boolean(renameAction),
+          renameActionDisabled: renameAction?.classList.contains('disabled') ?? null,
+          promptCall,
+          returnedToRoot: window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId,
+        };
+      })();
+      `,
+    );
+    must(
+      unnamedTabGroupRenameDefault.displayTitle === 'Unnamed Group' &&
+        unnamedTabGroupRenameDefault.renameActionFound &&
+        unnamedTabGroupRenameDefault.renameActionDisabled === false &&
+        unnamedTabGroupRenameDefault.promptCall.message === 'Edit folder name:' &&
+        unnamedTabGroupRenameDefault.promptCall.defaultValue === '' &&
+        unnamedTabGroupRenameDefault.returnedToRoot,
+      `Unnamed tab group rename prompt did not preserve empty title: ${JSON.stringify(unnamedTabGroupRenameDefault)}`,
     );
 
     const malformedNodesHandled = await cdp.eval(
