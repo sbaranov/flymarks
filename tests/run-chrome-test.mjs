@@ -1484,6 +1484,92 @@ async function main() {
       `Back row did not show clicked folder title: ${JSON.stringify(clickFolderNavigation)}`,
     );
 
+    const dragIntoFolder = await cdp.eval(
+      sessionId,
+      `
+      (async () => {
+        await window.__popupTest.refreshCurrent();
+        await new Promise((r) => setTimeout(r, 120));
+
+        const sourceRow = [...document.querySelectorAll('#bookmark-list > .item[data-node-id]')].find((row) =>
+          row.dataset.nodeId === ${JSON.stringify(fixture.ids.a)}
+        );
+        const folderRow = [...document.querySelectorAll('#bookmark-list > .item[data-node-id]')].find((row) =>
+          row.dataset.nodeId === ${JSON.stringify(fixture.ids.folder)}
+        );
+        if (!sourceRow || !folderRow) {
+          return { entered: false, moved: false, hasSource: Boolean(sourceRow), hasFolder: Boolean(folderRow) };
+        }
+
+        const dataTransfer = new DataTransfer();
+        const sourceRect = sourceRow.getBoundingClientRect();
+        sourceRow.dispatchEvent(new DragEvent('dragstart', {
+          bubbles: true,
+          cancelable: true,
+          clientX: sourceRect.left + 24,
+          clientY: sourceRect.top + 12,
+          dataTransfer,
+        }));
+
+        const folderRect = folderRow.getBoundingClientRect();
+        folderRow.dispatchEvent(new DragEvent('dragover', {
+          bubbles: true,
+          cancelable: true,
+          clientX: folderRect.left + 24,
+          clientY: folderRect.top + 12,
+          dataTransfer,
+        }));
+
+        for (let i = 0; i < 20; i++) {
+          if (window.__popupTest.getState().currentFolderId === ${JSON.stringify(fixture.ids.folder)}) break;
+          await new Promise((r) => setTimeout(r, 80));
+        }
+
+        const entered = window.__popupTest.getState().currentFolderId === ${JSON.stringify(fixture.ids.folder)};
+        const backLabel = document.querySelector('#bookmark-list > .item.back .item-title')?.textContent.trim();
+        document.querySelector('#bookmark-list').dispatchEvent(new DragEvent('drop', {
+          bubbles: true,
+          cancelable: true,
+          clientX: 40,
+          clientY: document.querySelector('#bookmark-list').getBoundingClientRect().bottom - 4,
+          dataTransfer,
+        }));
+        sourceRow.dispatchEvent(new DragEvent('dragend', {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer,
+        }));
+
+        let parentId = null;
+        let visibleInFolder = false;
+        for (let i = 0; i < 30; i++) {
+          const [node] = await chrome.bookmarks.get(${JSON.stringify(fixture.ids.a)});
+          parentId = node?.parentId || null;
+          visibleInFolder = [...document.querySelectorAll('#bookmark-list > .item .item-title')]
+            .some((el) => el.textContent.includes(${JSON.stringify(fixture.names.a)}));
+          if (parentId === ${JSON.stringify(fixture.ids.folder)} && visibleInFolder) break;
+          await new Promise((r) => setTimeout(r, 80));
+        }
+
+        return {
+          entered,
+          moved: parentId === ${JSON.stringify(fixture.ids.folder)},
+          visibleInFolder,
+          backLabel,
+          currentFolderId: window.__popupTest.getState().currentFolderId,
+          parentId,
+        };
+      })();
+      `,
+    );
+    must(
+      dragIntoFolder.entered &&
+        dragIntoFolder.moved &&
+        dragIntoFolder.visibleInFolder &&
+        dragIntoFolder.backLabel === fixture.names.folder,
+      `Dragging over a folder did not enter and drop there: ${JSON.stringify(dragIntoFolder)}`,
+    );
+
     console.log(`PASS: Extension UI and interactions verified in live browser: ${BROWSER_BIN}`);
   } finally {
     try {

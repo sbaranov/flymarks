@@ -7,6 +7,7 @@ const SETTINGS_KEY = 'bookmarksBarSettingsV1';
 const VIRTUAL_APPS_ID = 'virtual:apps';
 const VIRTUAL_TAB_GROUPS_ID = 'virtual:tab-groups';
 const VIRTUAL_TAB_GROUP_PREFIX = 'virtual:tab-group:';
+const DRAG_FOLDER_ENTER_DELAY = 550;
 const DEFAULT_SETTINGS = {
   showAppsShortcut: true,
   showTabGroups: true,
@@ -22,6 +23,7 @@ const state = {
   nodesById: new Map(),
   clipboard: null,
   drag: null,
+  dragFolderEnter: null,
   contextNodeId: null,
   settings: { ...DEFAULT_SETTINGS },
   suppressNextBookmarkRefresh: false,
@@ -450,6 +452,29 @@ function clearDropMarkers() {
   });
 }
 
+function cancelDragFolderEnter() {
+  if (state.dragFolderEnter?.timer) {
+    clearTimeout(state.dragFolderEnter.timer);
+  }
+  state.dragFolderEnter = null;
+}
+
+function scheduleDragFolderEnter(folderId) {
+  if (!state.drag || state.drag.id === folderId || state.currentFolderId === folderId) return;
+  if (state.dragFolderEnter?.folderId === folderId) return;
+
+  cancelDragFolderEnter();
+  state.dragFolderEnter = {
+    folderId,
+    timer: setTimeout(async () => {
+      if (!state.drag || state.drag.id === folderId || state.currentFolderId === folderId) return;
+      clearDropMarkers();
+      state.dragFolderEnter = null;
+      await enterFolder(folderId);
+    }, DRAG_FOLDER_ENTER_DELAY),
+  };
+}
+
 function getNextDropTargetItem(item) {
   let next = item.nextElementSibling;
   while (next) {
@@ -466,20 +491,30 @@ function getNextDropTargetItem(item) {
   return null;
 }
 
-function updateLocalMove(nodeId, parentId, index) {
-  const parent = state.nodesById.get(parentId);
+function updateLocalMove(nodeId, sourceParentId, destinationParentId, index) {
+  const sourceParent = state.nodesById.get(sourceParentId);
+  const destinationParent = state.nodesById.get(destinationParentId);
   const node = state.nodesById.get(nodeId);
-  if (!parent?.children || !node) return;
+  if (!destinationParent?.children || !node) return;
 
-  const children = sortedByIndex(parent.children).filter((child) => child.id !== nodeId);
-  children.splice(index, 0, { ...node, parentId, index });
+  if (sourceParent?.children) {
+    sourceParent.children = sortedByIndex(sourceParent.children).filter((child) => child.id !== nodeId);
+    sourceParent.children.forEach((child, childIndex) => {
+      child.index = childIndex;
+      state.nodesById.set(child.id, child);
+    });
+    state.nodesById.set(sourceParentId, sourceParent);
+  }
+
+  const children = sortedByIndex(destinationParent.children).filter((child) => child.id !== nodeId);
+  children.splice(index, 0, { ...node, parentId: destinationParentId, index });
   children.forEach((child, childIndex) => {
     child.index = childIndex;
-    child.parentId = parentId;
+    child.parentId = destinationParentId;
     state.nodesById.set(child.id, child);
   });
-  parent.children = children;
-  state.nodesById.set(parentId, parent);
+  destinationParent.children = children;
+  state.nodesById.set(destinationParentId, destinationParent);
 }
 
 function moveDraggedItemInDom(dragId, targetItem, placeBefore) {
@@ -495,6 +530,19 @@ function moveDraggedItemInDom(dragId, targetItem, placeBefore) {
   } else {
     listEl.insertBefore(sourceItem, targetItem.nextSibling);
   }
+}
+
+function appendDraggedItemInDom(dragId) {
+  const empty = listEl.querySelector(':scope > .empty');
+  if (empty) empty.remove();
+
+  let sourceItem = listEl.querySelector(`.item[data-node-id="${CSS.escape(dragId)}"]`);
+  if (!sourceItem) {
+    const node = state.nodesById.get(dragId);
+    if (!node) return;
+    sourceItem = createItem(node);
+  }
+  listEl.append(sourceItem);
 }
 
 function createItem(node, source = 'main') {
@@ -586,6 +634,7 @@ function createItem(node, source = 'main') {
   });
 
   item.addEventListener('dragend', () => {
+    cancelDragFolderEnter();
     state.drag = null;
     item.classList.remove('dragging');
     clearDropMarkers();
@@ -595,12 +644,19 @@ function createItem(node, source = 'main') {
     if (virtualNode) return;
     const nodeId = node?.id;
     if (!nodeId || !state.drag) return;
+    ev.stopPropagation();
     if (state.drag.id === nodeId) {
+      cancelDragFolderEnter();
       clearDropMarkers();
       return;
     }
     ev.preventDefault();
     clearDropMarkers();
+    if (isFolder(node)) {
+      scheduleDragFolderEnter(node.id);
+    } else {
+      cancelDragFolderEnter();
+    }
     const rect = item.getBoundingClientRect();
     const above = ev.clientY - rect.top < rect.height / 2;
     if (above) {
@@ -617,16 +673,20 @@ function createItem(node, source = 'main') {
   });
 
   item.addEventListener('dragleave', () => {
+    cancelDragFolderEnter();
     clearDropMarkers();
   });
 
   item.addEventListener('drop', async (ev) => {
     if (virtualNode) return;
     ev.preventDefault();
+    ev.stopPropagation();
+    cancelDragFolderEnter();
     clearDropMarkers();
 
     const nodeId = node?.id;
     const dragId = state.drag?.id;
+    const sourceFolderId = state.drag?.sourceFolderId;
     if (!nodeId || !dragId || dragId === nodeId) return;
 
     const children = sortedByIndex(await api.getChildren(state.currentFolderId));
@@ -640,7 +700,8 @@ function createItem(node, source = 'main') {
     moveDraggedItemInDom(dragId, item, placeBefore);
     state.suppressNextBookmarkRefresh = true;
     const moved = await api.move(dragId, { parentId: state.currentFolderId, index: requestedIndex });
-    updateLocalMove(dragId, state.currentFolderId, moved.index ?? requestedIndex);
+    updateLocalMove(dragId, sourceFolderId, state.currentFolderId, moved.index ?? requestedIndex);
+    if (state.drag) state.drag.sourceFolderId = state.currentFolderId;
   });
 
   return item;
@@ -916,6 +977,32 @@ listEl.addEventListener('contextmenu', (ev) => {
       openContextMenu(ev.clientX, ev.clientY, folder);
     }
   }
+});
+
+listEl.addEventListener('dragover', (ev) => {
+  if (!state.drag || isVirtualFolderId(state.currentFolderId)) return;
+  ev.preventDefault();
+  cancelDragFolderEnter();
+  clearDropMarkers();
+  ev.dataTransfer.dropEffect = 'move';
+});
+
+listEl.addEventListener('drop', async (ev) => {
+  if (!state.drag || isVirtualFolderId(state.currentFolderId)) return;
+  ev.preventDefault();
+  cancelDragFolderEnter();
+  clearDropMarkers();
+
+  const dragId = state.drag.id;
+  const sourceFolderId = state.drag.sourceFolderId;
+  const children = sortedByIndex(await api.getChildren(state.currentFolderId));
+  const requestedIndex = children.filter((child) => child.id !== dragId).length;
+
+  appendDraggedItemInDom(dragId);
+  state.suppressNextBookmarkRefresh = true;
+  const moved = await api.move(dragId, { parentId: state.currentFolderId, index: requestedIndex });
+  updateLocalMove(dragId, sourceFolderId, state.currentFolderId, moved.index ?? requestedIndex);
+  if (state.drag) state.drag.sourceFolderId = state.currentFolderId;
 });
 
 document.addEventListener('click', () => {
