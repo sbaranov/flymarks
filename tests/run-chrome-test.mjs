@@ -1571,6 +1571,68 @@ async function main() {
       `Direct drop onto a folder row did not move inside it: ${JSON.stringify(directDropIntoFolder)}`,
     );
 
+    const folderEdgeHoverDoesNotNavigate = await cdp.eval(
+      sessionId,
+      `
+      (async () => {
+        await window.__popupTest.refreshCurrent();
+        await new Promise((r) => setTimeout(r, 120));
+
+        const sourceRow = [...document.querySelectorAll('#bookmark-list > .item[data-node-id]')].find((row) =>
+          row.dataset.nodeId === ${JSON.stringify(fixture.ids.a)}
+        );
+        const folderRow = [...document.querySelectorAll('#bookmark-list > .item[data-node-id]')].find((row) =>
+          row.dataset.nodeId === ${JSON.stringify(fixture.ids.folder)}
+        );
+        if (!sourceRow || !folderRow) {
+          return { stayedAtRoot: false, hasSource: Boolean(sourceRow), hasFolder: Boolean(folderRow) };
+        }
+
+        const dataTransfer = new DataTransfer();
+        const sourceRect = sourceRow.getBoundingClientRect();
+        sourceRow.dispatchEvent(new DragEvent('dragstart', {
+          bubbles: true,
+          cancelable: true,
+          clientX: sourceRect.left + 24,
+          clientY: sourceRect.top + 12,
+          dataTransfer,
+        }));
+
+        const folderRect = folderRow.getBoundingClientRect();
+        folderRow.dispatchEvent(new DragEvent('dragover', {
+          bubbles: true,
+          cancelable: true,
+          clientX: folderRect.left + 24,
+          clientY: folderRect.top + 2,
+          dataTransfer,
+        }));
+        const blueLineOnly = folderRow.classList.contains('drop-before') &&
+          !folderRow.classList.contains('drop-into');
+
+        await new Promise((r) => setTimeout(r, 700));
+        const stayedAtRoot = window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId;
+
+        sourceRow.dispatchEvent(new DragEvent('dragend', {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer,
+        }));
+
+        return {
+          stayedAtRoot,
+          blueLineOnly,
+          currentFolderId: window.__popupTest.getState().currentFolderId,
+          rootFolderId: window.__popupTest.getState().rootFolderId,
+        };
+      })();
+      `,
+    );
+    must(
+      folderEdgeHoverDoesNotNavigate.stayedAtRoot &&
+        folderEdgeHoverDoesNotNavigate.blueLineOnly,
+      `Folder edge hover incorrectly navigated while showing only reorder line: ${JSON.stringify(folderEdgeHoverDoesNotNavigate)}`,
+    );
+
     const directDropIntoBack = await cdp.eval(
       sessionId,
       `

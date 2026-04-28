@@ -731,12 +731,12 @@ function createItem(node, source = 'main') {
     }
     ev.preventDefault();
     clearDropMarkers();
-    if (isFolder(node)) {
+    const intent = getDropIntent(node, item, ev.clientY);
+    if (intent.type === 'into') {
       scheduleDragFolderEnter(node.id);
     } else {
       cancelDragFolderEnter();
     }
-    const intent = getDropIntent(node, item, ev.clientY);
     if (intent.type === 'into') {
       item.classList.add('drop-into');
     } else if (intent.placeBefore) {
