@@ -673,9 +673,6 @@ function openContextMenu(_x, _y, node, opts = {}) {
     if (title === null) return;
     await api.update(node.id, { title });
   }, { disabled: virtualContext }));
-  listEl.append(createContextAction('Open in Bookmarks Manager', async () => {
-    await api.createTab({ url: getBookmarkManagerNodeUrl(node), active: true });
-  }, { refresh: false, closePopup: true, disabled: virtualContext }));
   listEl.append(separator());
 
   listEl.append(createContextAction('Cut', async () => {
@@ -735,9 +732,10 @@ function openContextMenu(_x, _y, node, opts = {}) {
   }, { disabled: !addEnabled }));
   listEl.append(separator());
 
-  listEl.append(createContextAction('Open Bookmarks Manager', async () => {
-    await api.createTab({ url: getBookmarkManagerUrl(), active: true });
-  }, { refresh: false }));
+  listEl.append(createContextAction(syntheticVirtualContext ? 'Open Bookmarks Manager' : 'Open in Bookmarks Manager', async () => {
+    const url = syntheticVirtualContext ? getBookmarkManagerUrl() : getBookmarkManagerNodeUrl(node);
+    await api.createTab({ url, active: true });
+  }, { refresh: false, closePopup: true }));
   listEl.append(createContextAction('Show Apps Shortcut', async () => {
     await setSetting('showAppsShortcut', !state.settings.showAppsShortcut);
   }, { checked: state.settings.showAppsShortcut }));

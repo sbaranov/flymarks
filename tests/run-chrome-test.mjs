@@ -425,7 +425,6 @@ async function main() {
           'Open All in Incognito Window',
           'Open All in New Tab Group',
           'Rename...',
-          'Open in Bookmarks Manager',
           'Cut',
           'Copy',
           'Paste',
@@ -867,7 +866,7 @@ async function main() {
       `Rename did not update only the selected bookmark title locally: ${JSON.stringify(renameBookmark)}`,
     );
 
-    const openInBookmarksManager = await cdp.eval(
+    const openBookmarksManager = await cdp.eval(
       sessionId,
       `
       (async () => {
@@ -918,12 +917,12 @@ async function main() {
     const expectedBookmarkEditUrl = new URL('chrome://bookmarks/');
     expectedBookmarkEditUrl.searchParams.set('q', 'https://example.com/a');
     must(
-      openInBookmarksManager.opened &&
-        openInBookmarksManager.calls.create?.url === expectedBookmarkEditUrl.toString() &&
-        openInBookmarksManager.calls.create?.active === true &&
-        openInBookmarksManager.calls.closeCount > 0 &&
-        !openInBookmarksManager.contextOpen,
-      `Open in Bookmarks Manager did not open Bookmark Manager for the selected node: ${JSON.stringify(openInBookmarksManager)}`,
+      openBookmarksManager.opened &&
+        openBookmarksManager.calls.create?.url === expectedBookmarkEditUrl.toString() &&
+        openBookmarksManager.calls.create?.active === true &&
+        openBookmarksManager.calls.closeCount > 0 &&
+        !openBookmarksManager.contextOpen,
+      `Open in Bookmarks Manager did not open Bookmark Manager for the selected node: ${JSON.stringify(openBookmarksManager)}`,
     );
 
     const openAllInTabGroup = await cdp.eval(
@@ -1113,14 +1112,13 @@ async function main() {
         'Open in New Window',
         'Open in Incognito Window',
         'Rename...',
-        'Open in Bookmarks Manager',
         'Cut',
         'Copy',
         'Paste',
         'Delete',
         'Add Page...',
         'Add Folder...',
-        'Open Bookmarks Manager',
+        'Open in Bookmarks Manager',
         'Show Apps Shortcut',
         'Show Tab Groups',
         'Show Other Bookmarks',
