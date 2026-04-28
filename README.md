@@ -1,4 +1,4 @@
-# Bookmarks Bar Extension
+# Bookmarks Menu
 
 Chrome extension that renders Bookmarks Bar entries in a Chrome-like popup menu with folder navigation, context actions, and bookmark operations.
 
@@ -118,9 +118,9 @@ For final visual checks, use the user's normal Google Chrome profile rather than
 
 1. Open `chrome://extensions/` in Google Chrome.
 2. Ensure Developer mode is on.
-3. If `Bookmarks Bar Menu` is already listed, click its Reload button.
+3. If `Bookmarks Menu` is already listed, click its Reload button.
 4. If it is not listed, click Load unpacked and select the current repository checkout.
-5. Open the toolbar action named `Bookmarks Bar` to inspect the popup.
+5. Open the toolbar action named `Bookmarks Menu` to inspect the popup.
 6. If the card shows an Errors button, open it, inspect whether the errors are current or stale, clear stale errors, reload the extension, and reopen the popup to verify the button stays gone.
 
 Ad hoc Chrome screenshots should be named `chrome-*.png`; this convention is ignored by git.
