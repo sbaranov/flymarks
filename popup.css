@@ -192,6 +192,20 @@ body {
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'%3E%3Crect x='2.2' y='2.2' width='4.8' height='4.8' rx='0.7'/%3E%3Crect x='9' y='2.2' width='4.8' height='4.8' rx='0.7'/%3E%3Crect x='2.2' y='9' width='4.8' height='4.8' rx='0.7'/%3E%3Crect x='9' y='9' width='4.8' height='4.8' rx='0.7'/%3E%3C/g%3E%3C/svg%3E") center / 16px 16px no-repeat;
 }
 
+.item.folder.virtual-other-bookmarks .item-icon::before {
+  inset: 0;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'%3E%3Cpath d='M2.5 5.4h11v7.1c0 .6-.4 1-1 1h-9c-.6 0-1-.4-1-1V5.4Z'/%3E%3Cpath d='M4.2 5.4V3.5c0-.6.4-1 1-1h5.6c.6 0 1 .4 1 1v1.9'/%3E%3Cpath d='M6 7.8h4'/%3E%3C/g%3E%3C/svg%3E") center / 16px 16px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'%3E%3Cpath d='M2.5 5.4h11v7.1c0 .6-.4 1-1 1h-9c-.6 0-1-.4-1-1V5.4Z'/%3E%3Cpath d='M4.2 5.4V3.5c0-.6.4-1 1-1h5.6c.6 0 1 .4 1 1v1.9'/%3E%3Cpath d='M6 7.8h4'/%3E%3C/g%3E%3C/svg%3E") center / 16px 16px no-repeat;
+}
+
+.item.folder.virtual-mobile-bookmarks .item-icon::before {
+  inset: 0;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='1.35' stroke-linejoin='round'%3E%3Crect x='4.4' y='1.8' width='7.2' height='12.4' rx='1.2'/%3E%3Cpath d='M7 3.7h2'/%3E%3Cpath d='M7.4 12.1h1.2'/%3E%3C/g%3E%3C/svg%3E") center / 16px 16px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='1.35' stroke-linejoin='round'%3E%3Crect x='4.4' y='1.8' width='7.2' height='12.4' rx='1.2'/%3E%3Cpath d='M7 3.7h2'/%3E%3Cpath d='M7.4 12.1h1.2'/%3E%3C/g%3E%3C/svg%3E") center / 16px 16px no-repeat;
+}
+
 .item.bookmark .item-icon.fallback::before {
   content: "";
   width: 8px;

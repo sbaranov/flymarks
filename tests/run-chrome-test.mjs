@@ -338,6 +338,12 @@ async function main() {
         const tabGroupsVirtual = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')]
           .find((row) => row.querySelector('.item-title')?.textContent.trim() === 'Tab Groups');
         const tabGroupsIconClass = tabGroupsVirtual?.classList.contains('virtual-tab-groups-root') || false;
+        const otherBookmarks = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')]
+          .find((row) => row.querySelector('.item-title')?.textContent.trim() === 'Other Bookmarks');
+        const mobileBookmarks = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')]
+          .find((row) => row.querySelector('.item-title')?.textContent.trim() === 'Mobile Bookmarks');
+        const otherIconClass = otherBookmarks?.classList.contains('virtual-other-bookmarks') || false;
+        const mobileIconClass = mobileBookmarks?.classList.contains('virtual-mobile-bookmarks') || false;
         tabGroupsVirtual.click();
         for (let i = 0; i < 20; i++) {
           if (document.querySelector('#bookmark-list > .item.back')) break;
@@ -354,16 +360,31 @@ async function main() {
         const backWorks = window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId &&
           !document.querySelector('#bookmark-list > .item.back');
 
-        return { toolbarGone, virtualsFirst, appsCounter, appsIconClass, tabGroupsIconClass, appsCalls, enteredVirtual, virtualBackLabel, backWorks };
+        return {
+          toolbarGone,
+          virtualsFirst,
+          appsCounter,
+          appsIconClass,
+          tabGroupsIconClass,
+          otherIconClass,
+          mobileIconClass,
+          appsCalls,
+          enteredVirtual,
+          virtualBackLabel,
+          backWorks,
+        };
       })();
       `,
     );
+    const hasMobileBookmarksRoot = fixture.topLevelVirtuals.some((n) => n.title === 'Mobile Bookmarks');
     must(rootNavigation.toolbarGone, 'Popup toolbar/header is still rendered.');
     must(rootNavigation.virtualsFirst, `Virtual root folders were not rendered first: ${JSON.stringify(rootNavigation)}`);
     must(
       rootNavigation.appsCounter === '' &&
       rootNavigation.appsIconClass &&
       rootNavigation.tabGroupsIconClass &&
+      rootNavigation.otherIconClass &&
+      (!hasMobileBookmarksRoot || rootNavigation.mobileIconClass) &&
       rootNavigation.appsCalls.create?.url === 'chrome://apps/' &&
         rootNavigation.appsCalls.create?.active === true &&
         rootNavigation.appsCalls.closeCount > 0,
@@ -422,7 +443,6 @@ async function main() {
       })();
       `,
     );
-    const hasMobileBookmarksRoot = fixture.topLevelVirtuals.some((n) => n.title === 'Mobile Bookmarks');
     must(
       virtualSettingToggles.initial.state.showAppsShortcut === true &&
         virtualSettingToggles.initial.state.showTabGroups === true &&

@@ -125,13 +125,23 @@ function loadSnapshotSync() {
 }
 
 async function getVirtualRootFolders() {
-  const rootFolders = sortedByIndex(state.topLevelFolders).filter((node) => (
-    node.id !== state.rootFolderId &&
-    (
-      (state.settings.showOtherBookmarks && (node.id === '2' || /^other bookmarks$/i.test(node.title || ''))) ||
-      (state.settings.showMobileBookmarks && (node.id === '3' || /^mobile bookmarks$/i.test(node.title || '')))
-    )
-  ));
+  const rootFolders = sortedByIndex(state.topLevelFolders)
+    .filter((node) => (
+      node.id !== state.rootFolderId &&
+      (
+        (state.settings.showOtherBookmarks && (node.id === '2' || /^other bookmarks$/i.test(node.title || ''))) ||
+        (state.settings.showMobileBookmarks && (node.id === '3' || /^mobile bookmarks$/i.test(node.title || '')))
+      )
+    ))
+    .map((node) => {
+      if (node.id === '2' || /^other bookmarks$/i.test(node.title || '')) {
+        return { ...node, virtualType: 'other-bookmarks' };
+      }
+      if (node.id === '3' || /^mobile bookmarks$/i.test(node.title || '')) {
+        return { ...node, virtualType: 'mobile-bookmarks' };
+      }
+      return node;
+    });
   return [
     ...(state.settings.showAppsShortcut
       ? [{ id: VIRTUAL_APPS_ID, title: 'Apps', index: -2, virtualType: 'apps' }]
