@@ -1752,6 +1752,11 @@ async function main() {
       sessionId,
       `
       (async () => {
+        const dropTarget = await chrome.bookmarks.create({
+          parentId: ${JSON.stringify(fixture.ids.folder)},
+          title: 'CodexExtTest Existing Target ' + Date.now().toString(36),
+          url: 'https://example.com/existing-target',
+        });
         await window.__popupTest.refreshCurrent();
         await new Promise((r) => setTimeout(r, 120));
 
@@ -1791,11 +1796,15 @@ async function main() {
 
         const entered = window.__popupTest.getState().currentFolderId === ${JSON.stringify(fixture.ids.folder)};
         const backLabel = document.querySelector('#bookmark-list > .item.back .item-title')?.textContent.trim();
-        document.querySelector('#bookmark-list').dispatchEvent(new DragEvent('drop', {
+        const childRow = [...document.querySelectorAll('#bookmark-list > .item[data-node-id]')].find((row) =>
+          row.dataset.nodeId === dropTarget.id
+        );
+        const childRect = childRow?.getBoundingClientRect();
+        childRow?.dispatchEvent(new DragEvent('drop', {
           bubbles: true,
           cancelable: true,
-          clientX: 40,
-          clientY: document.querySelector('#bookmark-list').getBoundingClientRect().bottom - 4,
+          clientX: (childRect?.left || 0) + 24,
+          clientY: (childRect?.top || 0) + 2,
           dataTransfer,
         }));
         sourceRow.dispatchEvent(new DragEvent('dragend', {
@@ -1820,6 +1829,7 @@ async function main() {
           moved: parentId === ${JSON.stringify(fixture.ids.folder)},
           visibleInFolder,
           backLabel,
+          hasChildRow: Boolean(childRow),
           currentFolderId: window.__popupTest.getState().currentFolderId,
           parentId,
         };
@@ -1830,6 +1840,7 @@ async function main() {
       dragIntoFolder.entered &&
         dragIntoFolder.moved &&
         dragIntoFolder.visibleInFolder &&
+        dragIntoFolder.hasChildRow &&
         dragIntoFolder.backLabel === fixture.names.folder,
       `Dragging over a folder did not enter and drop there: ${JSON.stringify(dragIntoFolder)}`,
     );

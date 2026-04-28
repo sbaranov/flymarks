@@ -564,8 +564,13 @@ function updateLocalMove(nodeId, sourceParentId, destinationParentId, index) {
 }
 
 function moveDraggedItemInDom(dragId, targetItem, placeBefore) {
-  const sourceItem = listEl.querySelector(`.item[data-node-id="${CSS.escape(dragId)}"]`);
-  if (!sourceItem || !targetItem || sourceItem === targetItem) return;
+  let sourceItem = listEl.querySelector(`.item[data-node-id="${CSS.escape(dragId)}"]`);
+  if (!sourceItem) {
+    const node = state.nodesById.get(dragId);
+    if (!node) return;
+    sourceItem = createItem(node);
+  }
+  if (!targetItem || sourceItem === targetItem) return;
   if (placeBefore) {
     listEl.insertBefore(sourceItem, targetItem);
     return;
