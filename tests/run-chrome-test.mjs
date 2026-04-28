@@ -351,6 +351,7 @@ async function main() {
         }
         const enteredVirtual = window.__popupTest.getState().currentFolderId === 'virtual:tab-groups';
         const virtualBackLabel = document.querySelector('#bookmark-list > .item.back .item-title')?.textContent.trim();
+        const virtualEmptyText = document.querySelector('#bookmark-list > .empty')?.textContent.trim() || '';
 
         document.querySelector('#bookmark-list > .item.back')?.click();
         for (let i = 0; i < 20; i++) {
@@ -371,6 +372,7 @@ async function main() {
           appsCalls,
           enteredVirtual,
           virtualBackLabel,
+          virtualEmptyText,
           backWorks,
         };
       })();
@@ -394,6 +396,10 @@ async function main() {
     must(
       rootNavigation.virtualBackLabel === 'Tab Groups',
       `Back row did not show current folder title: ${JSON.stringify(rootNavigation)}`,
+    );
+    must(
+      rootNavigation.virtualEmptyText === 'No tab groups',
+      `Empty Tab Groups folder did not show relevant text: ${JSON.stringify(rootNavigation)}`,
     );
     must(rootNavigation.backWorks, `Back row did not return to Bookmarks Bar root: ${JSON.stringify(rootNavigation)}`);
 

@@ -354,6 +354,17 @@ function createBackItem() {
   return item;
 }
 
+function getEmptyMessage() {
+  const folder = state.nodesById.get(state.currentFolderId);
+  if (folder?.virtualType === 'tab-groups-root') {
+    return 'No tab groups';
+  }
+  if (folder?.virtualType === 'tab-group') {
+    return 'No tabs in this group';
+  }
+  return 'No bookmarks in this folder';
+}
+
 function createContextBackItem(node) {
   const item = itemTemplate.content.firstElementChild.cloneNode(true);
   item.classList.add('back');
@@ -391,7 +402,7 @@ async function renderList(children, opts = {}) {
     if (virtualFolders.length) return;
     const empty = document.createElement('div');
     empty.className = 'empty';
-    empty.textContent = 'No bookmarks in this folder';
+    empty.textContent = getEmptyMessage();
     listEl.append(empty);
     return;
   }
