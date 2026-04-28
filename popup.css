@@ -94,7 +94,6 @@ body {
   color: var(--text);
 }
 
-.item.dragging .item-icon,
 .item.dragging .item-meta {
   opacity: 0;
 }
