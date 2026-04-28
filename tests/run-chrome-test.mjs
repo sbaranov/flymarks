@@ -1519,9 +1519,11 @@ async function main() {
           clientY: folderRect.top + folderRect.height / 2,
           dataTransfer,
         }));
-        const dropIntoMarker = folderRow.classList.contains('drop-into') &&
+        const dropIntoStyle = getComputedStyle(folderRow);
+        const dropIntoHighlight = folderRow.classList.contains('drop-into') &&
           !folderRow.classList.contains('drop-before') &&
-          !folderRow.classList.contains('drop-after');
+          !folderRow.classList.contains('drop-after') &&
+          dropIntoStyle.backgroundColor !== 'rgba(0, 0, 0, 0)';
         folderRow.dispatchEvent(new DragEvent('drop', {
           bubbles: true,
           cancelable: true,
@@ -1550,7 +1552,7 @@ async function main() {
 
         return {
           moved: parentId === ${JSON.stringify(fixture.ids.emptyFolder)},
-          dropIntoMarker,
+          dropIntoHighlight,
           stillAtRoot,
           sourceStillVisible,
           folderCounter,
@@ -1561,7 +1563,7 @@ async function main() {
     );
     must(
       directDropIntoFolder.moved &&
-        directDropIntoFolder.dropIntoMarker &&
+        directDropIntoFolder.dropIntoHighlight &&
         directDropIntoFolder.stillAtRoot &&
         !directDropIntoFolder.sourceStillVisible &&
         directDropIntoFolder.folderCounter === '1',
