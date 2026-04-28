@@ -624,6 +624,22 @@ async function main() {
     );
     must(deletedViaContext.removed, `Context menu Delete did not remove bookmark: ${JSON.stringify(deletedViaContext)}`);
     must(
+      JSON.stringify(deletedViaContext.actionLabels) === JSON.stringify([
+        'Open in New Tab',
+        'Open in New Window',
+        'Open in Incognito Window',
+        'Edit...',
+        'Cut',
+        'Copy',
+        'Paste',
+        'Delete',
+        'Add Page...',
+        'Add Folder...',
+        'Open Bookmarks Manager',
+      ]),
+      `Bookmark context menu labels were not Chrome-like: ${JSON.stringify(deletedViaContext.actionLabels)}`,
+    );
+    must(
       deletedViaContext.confirmMessages.length === 2 &&
         deletedViaContext.confirmMessages.every((message) => message.includes(fixture.names.b)),
       `Context menu Delete did not confirm with item name: ${JSON.stringify(deletedViaContext)}`,

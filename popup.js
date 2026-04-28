@@ -479,9 +479,6 @@ function openContextMenu(_x, _y, node) {
   listEl.append(createContextBackItem(node), createSeparator());
 
   if (!folder) {
-    listEl.append(createContextAction('Open', async () => {
-      await openBookmarkWithModifiers(node, null);
-    }, { refresh: false }));
     listEl.append(createContextAction('Open in New Tab', () => api.createTab({ url: node.url, active: false }), { refresh: false }));
     listEl.append(createContextAction('Open in New Window', () => api.createWindow({ url: node.url }), { refresh: false }));
     listEl.append(createContextAction('Open in Incognito Window', () => api.createWindow({ url: node.url, incognito: true }), { refresh: false }));
@@ -494,23 +491,21 @@ function openContextMenu(_x, _y, node) {
     listEl.append(separator());
   }
 
-  listEl.append(createContextAction('Add New Bookmark', async () => {
-    const title = prompt('Bookmark title:', 'New bookmark');
-    if (!title) return;
-    const url = prompt('Bookmark URL:', 'https://');
-    if (!url) return;
-    const parentId = folder ? node.id : node.parentId;
-    await api.create({ parentId, title, url });
-  }));
+  listEl.append(createContextAction('Edit...', async () => {
+    const title = prompt('Edit title:', node.title || '');
+    if (title === null) return;
 
-  listEl.append(createContextAction('Add New Folder', async () => {
-    const title = prompt('Folder name:', 'New folder');
-    if (!title) return;
-    const parentId = folder ? node.id : node.parentId;
-    await api.create({ parentId, title });
-  }));
+    if (folder) {
+      await api.update(node.id, { title });
+      return;
+    }
 
+    const url = prompt('Edit URL:', node.url || '');
+    if (url === null) return;
+    await api.update(node.id, { title, url });
+  }));
   listEl.append(separator());
+
   listEl.append(createContextAction('Cut', async () => {
     state.clipboard = { id: node.id, mode: 'cut' };
   }, { refresh: false }));
@@ -532,21 +527,40 @@ function openContextMenu(_x, _y, node) {
     const [source] = await chrome.bookmarks.getSubTree(state.clipboard.id);
     await cloneNode(source, destinationParentId);
   }, { disabled: !canPaste }));
-
   listEl.append(separator());
-  listEl.append(createContextAction('Edit', async () => {
-    const title = prompt('Edit title:', node.title || '');
-    if (title === null) return;
 
+  listEl.append(createContextAction('Delete', async () => {
     if (folder) {
-      await api.update(node.id, { title });
-      return;
+      await api.removeTree(node.id);
+    } else {
+      await api.remove(node.id);
     }
-
-    const url = prompt('Edit URL:', node.url || '');
-    if (url === null) return;
-    await api.update(node.id, { title, url });
+  }, {
+    confirmMessage: () => {
+      const title = node.title || node.url || 'this item';
+      return folder
+        ? `Delete folder "${title}" and all of its contents?`
+        : `Delete bookmark "${title}"?`;
+    },
   }));
+  listEl.append(separator());
+
+  listEl.append(createContextAction('Add Page...', async () => {
+    const title = prompt('Bookmark title:', 'New bookmark');
+    if (!title) return;
+    const url = prompt('Bookmark URL:', 'https://');
+    if (!url) return;
+    const parentId = folder ? node.id : node.parentId;
+    await api.create({ parentId, title, url });
+  }));
+
+  listEl.append(createContextAction('Add Folder...', async () => {
+    const title = prompt('Folder name:', 'New folder');
+    if (!title) return;
+    const parentId = folder ? node.id : node.parentId;
+    await api.create({ parentId, title });
+  }));
+  listEl.append(separator());
 
   if (folder) {
     listEl.append(createContextAction('Sort by Name', async () => {
@@ -556,25 +570,9 @@ function openContextMenu(_x, _y, node) {
     }));
   }
 
-  listEl.append(createContextAction('Bookmark Manager', async () => {
+  listEl.append(createContextAction('Open Bookmarks Manager', async () => {
     await api.createTab({ url: 'chrome://bookmarks/', active: true });
   }, { refresh: false }));
-
-  listEl.append(createContextAction('Delete', async () => {
-    if (folder) {
-      await api.removeTree(node.id);
-    } else {
-      await api.remove(node.id);
-    }
-  }, {
-    danger: true,
-    confirmMessage: () => {
-      const title = node.title || node.url || 'this item';
-      return folder
-        ? `Delete folder "${title}" and all of its contents?`
-        : `Delete bookmark "${title}"?`;
-    },
-  }));
 }
 
 async function cloneNode(sourceNode, parentId) {
