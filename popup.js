@@ -471,6 +471,24 @@ async function openAllInFolder(folderId, mode = 'tab', folderTitle = '') {
   await Promise.all(rest.map((url) => api.createTab({ url, active: false })));
 }
 
+function getBookmarkManagerUrl({ folderId = '', query = '' } = {}) {
+  const url = new URL('chrome://bookmarks/');
+  if (folderId) {
+    url.searchParams.set('id', folderId);
+  }
+  if (query) {
+    url.searchParams.set('q', query);
+  }
+  return url.toString();
+}
+
+function getBookmarkManagerNodeUrl(node) {
+  if (isFolder(node)) {
+    return getBookmarkManagerUrl({ folderId: node.id });
+  }
+  return getBookmarkManagerUrl({ query: node.url || node.title || '' });
+}
+
 function openContextMenu(_x, _y, node) {
   state.contextNodeId = node.id;
   listEl.innerHTML = '';
@@ -492,18 +510,13 @@ function openContextMenu(_x, _y, node) {
   }
 
   listEl.append(createContextAction('Edit...', async () => {
-    const title = prompt('Edit title:', node.title || '');
+    const title = prompt(folder ? 'Folder name:' : 'Bookmark title:', node.title || '');
     if (title === null) return;
-
-    if (folder) {
-      await api.update(node.id, { title });
-      return;
-    }
-
-    const url = prompt('Edit URL:', node.url || '');
-    if (url === null) return;
-    await api.update(node.id, { title, url });
+    await api.update(node.id, { title });
   }));
+  listEl.append(createContextAction('Open in Bookmarks Manager', async () => {
+    await api.createTab({ url: getBookmarkManagerNodeUrl(node), active: true });
+  }, { refresh: false, closePopup: true }));
   listEl.append(separator());
 
   listEl.append(createContextAction('Cut', async () => {
@@ -571,7 +584,7 @@ function openContextMenu(_x, _y, node) {
   }
 
   listEl.append(createContextAction('Open Bookmarks Manager', async () => {
-    await api.createTab({ url: 'chrome://bookmarks/', active: true });
+    await api.createTab({ url: getBookmarkManagerUrl(), active: true });
   }, { refresh: false }));
 }
 

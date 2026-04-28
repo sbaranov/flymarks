@@ -444,6 +444,137 @@ async function main() {
       `Meta-click behavior mismatch: ${JSON.stringify(clickBehavior.meta)}`,
     );
 
+    const editRenamesBookmark = await cdp.eval(
+      sessionId,
+      `
+      (async () => {
+        await window.__popupTest.refreshCurrent();
+        const targetText = ${JSON.stringify(fixture.names.a)};
+        const row = [...document.querySelectorAll('.item')].find((el) =>
+          el.querySelector('.item-title')?.textContent.includes(targetText)
+        );
+
+        row.dispatchEvent(new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: 120,
+          clientY: 120,
+          button: 2,
+        }));
+
+        const editBtn = [...document.querySelectorAll('#bookmark-list > .item.context-action')].find((el) =>
+          el.textContent.trim() === 'Edit...'
+        );
+        if (!editBtn) return { opened: false, hasEdit: false };
+
+        const orig = {
+          prompt: window.prompt,
+          update: chrome.bookmarks.update,
+          create: chrome.tabs.create,
+          close: window.close,
+        };
+        const calls = { prompt: null, update: null, create: null, closeCount: 0 };
+        window.prompt = (message, defaultValue) => {
+          calls.prompt = { message, defaultValue };
+          return 'Renamed by test';
+        };
+        chrome.bookmarks.update = async (id, changes) => {
+          calls.update = { id, changes };
+          return { id, ...changes };
+        };
+        chrome.tabs.create = async (payload) => {
+          calls.create = payload;
+          return { id: 888, ...payload };
+        };
+        window.close = () => { calls.closeCount += 1; };
+
+        editBtn.click();
+        await new Promise((r) => setTimeout(r, 80));
+
+        window.prompt = orig.prompt;
+        chrome.bookmarks.update = orig.update;
+        chrome.tabs.create = orig.create;
+        window.close = orig.close;
+
+        return {
+          opened: true,
+          calls,
+          contextOpen: window.__popupTest.getState().contextOpen,
+        };
+      })();
+      `,
+    );
+    must(
+      editRenamesBookmark.opened &&
+        editRenamesBookmark.calls.prompt?.message === 'Bookmark title:' &&
+        editRenamesBookmark.calls.prompt?.defaultValue === fixture.names.a &&
+        editRenamesBookmark.calls.update?.id === fixture.ids.a &&
+        editRenamesBookmark.calls.update?.changes?.title === 'Renamed by test' &&
+        editRenamesBookmark.calls.create === null &&
+        editRenamesBookmark.calls.closeCount === 0 &&
+        !editRenamesBookmark.contextOpen,
+      `Edit did not rename the selected bookmark locally: ${JSON.stringify(editRenamesBookmark)}`,
+    );
+
+    const openInBookmarksManager = await cdp.eval(
+      sessionId,
+      `
+      (async () => {
+        await window.__popupTest.refreshCurrent();
+        const targetText = ${JSON.stringify(fixture.names.a)};
+        const row = [...document.querySelectorAll('.item')].find((el) =>
+          el.querySelector('.item-title')?.textContent.includes(targetText)
+        );
+
+        row.dispatchEvent(new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: 120,
+          clientY: 120,
+          button: 2,
+        }));
+
+        const managerBtn = [...document.querySelectorAll('#bookmark-list > .item.context-action')].find((el) =>
+          el.textContent.trim() === 'Open in Bookmarks Manager'
+        );
+        if (!managerBtn) return { opened: false, hasManager: false };
+
+        const orig = {
+          create: chrome.tabs.create,
+          close: window.close,
+        };
+        const calls = { create: null, closeCount: 0 };
+        chrome.tabs.create = async (payload) => {
+          calls.create = payload;
+          return { id: 888, ...payload };
+        };
+        window.close = () => { calls.closeCount += 1; };
+
+        managerBtn.click();
+        await new Promise((r) => setTimeout(r, 80));
+
+        chrome.tabs.create = orig.create;
+        window.close = orig.close;
+
+        return {
+          opened: true,
+          calls,
+          contextOpen: window.__popupTest.getState().contextOpen,
+        };
+      })();
+      `,
+    );
+    const expectedBookmarkEditUrl = new URL('chrome://bookmarks/');
+    expectedBookmarkEditUrl.searchParams.set('q', 'https://example.com/a');
+    must(
+      openInBookmarksManager.opened &&
+        openInBookmarksManager.calls.create?.url === expectedBookmarkEditUrl.toString() &&
+        openInBookmarksManager.calls.create?.active === true &&
+        openInBookmarksManager.calls.closeCount > 0 &&
+        !openInBookmarksManager.contextOpen,
+      `Open in Bookmarks Manager did not open Bookmark Manager for the selected node: ${JSON.stringify(openInBookmarksManager)}`,
+    );
+
     const openAllInTabGroup = await cdp.eval(
       sessionId,
       `
@@ -629,6 +760,7 @@ async function main() {
         'Open in New Window',
         'Open in Incognito Window',
         'Edit...',
+        'Open in Bookmarks Manager',
         'Cut',
         'Copy',
         'Paste',
