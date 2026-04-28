@@ -8,8 +8,8 @@
   "scripts": {
     "test": "node --experimental-websocket tests/e2e.mjs",
     "icons": "node scripts/generate-icons.mjs",
-    "browser": "browser_bin=\"${BROWSER_BIN:-/Users/stas/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing}\"; \"$browser_bin\" --use-mock-keychain --user-data-dir=/tmp/bookmarks-ext-manual --no-first-run --no-default-browser-check --load-extension=\"$PWD\"",
-    "browser:fresh": "profile_dir=$(mktemp -d /tmp/bookmarks-ext-manual.XXXXXX) && browser_bin=\"${BROWSER_BIN:-/Users/stas/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing}\" && \"$browser_bin\" --use-mock-keychain --user-data-dir=\"$profile_dir\" --no-first-run --no-default-browser-check --load-extension=\"$PWD\""
+    "browser": "browser_bin=\"${BROWSER_BIN:-$HOME/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing}\"; \"$browser_bin\" --use-mock-keychain --user-data-dir=/tmp/bookmarks-ext-manual --no-first-run --no-default-browser-check --load-extension=\"$PWD\"",
+    "browser:fresh": "profile_dir=$(mktemp -d /tmp/bookmarks-ext-manual.XXXXXX) && browser_bin=\"${BROWSER_BIN:-$HOME/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing}\" && \"$browser_bin\" --use-mock-keychain --user-data-dir=\"$profile_dir\" --no-first-run --no-default-browser-check --load-extension=\"$PWD\""
   },
   "keywords": [],
   "author": "",

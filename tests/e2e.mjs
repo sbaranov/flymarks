@@ -6,7 +6,7 @@ import net from 'node:net';
 
 const EXT_DIR = path.resolve(process.cwd());
 const BROWSER_BIN = process.env.BROWSER_BIN ||
-  '/Users/stas/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing';
+  path.join(os.homedir(), 'Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing');
 const HEADLESS = process.env.HEADLESS !== '0';
 
 function sleep(ms) {

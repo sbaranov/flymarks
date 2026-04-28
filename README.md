@@ -8,13 +8,13 @@ This project uses **Chrome for Testing** for automation (not your personal Chrom
 Install it as a per-user macOS app so it survives reboots and temporary-directory cleanup:
 
 ```text
-/Users/stas/Applications/Google Chrome for Testing.app
+$HOME/Applications/Google Chrome for Testing.app
 ```
 
 ### macOS (Apple Silicon)
 
 ```bash
-mkdir -p /Users/stas/Applications /tmp/chrome-for-testing-download
+mkdir -p $HOME/Applications /tmp/chrome-for-testing-download
 cd /tmp/chrome-for-testing-download
 
 curl -fsSL https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json -o versions.json
@@ -22,14 +22,14 @@ url=$(jq -r '.channels.Stable.downloads.chrome[] | select(.platform=="mac-arm64"
 curl -fL "$url" -o chrome-mac-arm64.zip
 rm -rf chrome-mac-arm64
 unzip -q -o chrome-mac-arm64.zip
-rm -rf '/Users/stas/Applications/Google Chrome for Testing.app'
-ditto 'chrome-mac-arm64/Google Chrome for Testing.app' '/Users/stas/Applications/Google Chrome for Testing.app'
+rm -rf "$HOME/Applications/Google Chrome for Testing.app"
+ditto 'chrome-mac-arm64/Google Chrome for Testing.app' "$HOME/Applications/Google Chrome for Testing.app"
 ```
 
 Binary path:
 
 ```text
-/Users/stas/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
+$HOME/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
 ```
 
 ### macOS (Intel)
@@ -57,7 +57,7 @@ PASS: Extension UI and interactions verified in live browser: ...
 
 - Test runner uses an isolated temporary profile (`--user-data-dir`), so it does not touch your normal browser data.
 - Runner enables `--use-mock-keychain` to avoid Keychain unlock prompts.
-- If `BROWSER_BIN` is not set, runner uses `/Users/stas/Applications/Google Chrome for Testing.app`.
+- If `BROWSER_BIN` is not set, runner uses `$HOME/Applications/Google Chrome for Testing.app`.
 - If you want to regenerate toolbar icons:
 
 ```bash
@@ -104,7 +104,7 @@ Optional:
 If you want to inspect UI manually while developing, launch Chrome for Testing with:
 
 ```bash
-'/Users/stas/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing' \
+"$HOME/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing" \
   --use-mock-keychain \
   --user-data-dir=/tmp/bookmarks-ext-manual \
   --load-extension="$PWD"
@@ -173,5 +173,5 @@ This section documents the key constraints and decisions behind the E2E browser 
 
 ### 7. Browser installation model
 
-- Chrome for Testing should be installed at `/Users/stas/Applications/Google Chrome for Testing.app` so multiple workspaces can reuse it and it survives reboots.
+- Chrome for Testing should be installed at `$HOME/Applications/Google Chrome for Testing.app` so multiple workspaces can reuse it and it survives reboots.
 - The repository intentionally does not commit browser binaries.
