@@ -515,6 +515,20 @@ function createItem(node, source = 'main') {
     item.classList.add('dragging');
     ev.dataTransfer.effectAllowed = 'move';
     ev.dataTransfer.setData('text/plain', node.id);
+    const rect = item.getBoundingClientRect();
+    const dragImage = item.cloneNode(true);
+    dragImage.classList.add('drag-image');
+    dragImage.classList.remove('dragging', 'drop-before', 'drop-after', 'active');
+    dragImage.removeAttribute('id');
+    dragImage.style.width = `${rect.width}px`;
+    dragImage.style.height = `${rect.height}px`;
+    document.body.append(dragImage);
+    ev.dataTransfer.setDragImage(
+      dragImage,
+      Math.max(0, Math.round(ev.clientX - rect.left)),
+      Math.max(0, Math.round(ev.clientY - rect.top)),
+    );
+    requestAnimationFrame(() => dragImage.remove());
   });
 
   item.addEventListener('dragend', () => {

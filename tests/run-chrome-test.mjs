@@ -1302,13 +1302,45 @@ async function main() {
           return { moved: false, hasSource: Boolean(sourceRow), hasTarget: Boolean(targetRow) };
         }
         const dataTransfer = new DataTransfer();
+        const rect = sourceRow.getBoundingClientRect();
+        const dragClientX = rect.left + 24;
+        const dragClientY = rect.top + 12;
+        const originalSetDragImage = DataTransfer.prototype.setDragImage;
+        let dragImageCall = null;
+        DataTransfer.prototype.setDragImage = function(image, x, y) {
+          dragImageCall = { image, x, y };
+          return originalSetDragImage.call(this, image, x, y);
+        };
         sourceRow.dispatchEvent(new DragEvent('dragstart', {
           bubbles: true,
           cancelable: true,
+          clientX: dragClientX,
+          clientY: dragClientY,
           dataTransfer,
         }));
-        const transparentWhileDragging = sourceRow.classList.contains('dragging') &&
-          getComputedStyle(sourceRow).opacity === '0.35';
+        DataTransfer.prototype.setDragImage = originalSetDragImage;
+        const dragImage = document.querySelector('.drag-image');
+        const dragImageStyle = dragImage ? getComputedStyle(dragImage) : null;
+        sourceRow.classList.add('active');
+        const rowStyle = getComputedStyle(sourceRow);
+        const iconStyle = getComputedStyle(sourceRow.querySelector('.item-icon'));
+        const metaStyle = getComputedStyle(sourceRow.querySelector('.item-meta'));
+        const dragImageIcon = dragImage?.querySelector('.item-icon');
+        const dragImageTitle = dragImage?.querySelector('.item-title');
+        const iconAndTextWhileDragging = sourceRow.classList.contains('dragging') &&
+          rowStyle.backgroundColor === 'rgba(0, 0, 0, 0)' &&
+          rowStyle.boxShadow === 'none' &&
+          rowStyle.opacity === '1' &&
+          iconStyle.opacity === '0' &&
+          metaStyle.opacity === '0' &&
+          Boolean(dragImageIcon) &&
+          dragImageTitle?.textContent === sourceRow.querySelector('.item-title')?.textContent &&
+          dragImageStyle?.backgroundColor === 'rgba(0, 0, 0, 0)' &&
+          dragImageStyle?.boxShadow === 'none' &&
+          dragImageCall?.image === dragImage &&
+          dragImageCall?.x === 24 &&
+          dragImageCall?.y === 12;
+        sourceRow.classList.remove('active');
         sourceRow.dispatchEvent(new DragEvent('dragend', {
           bubbles: true,
           cancelable: true,
@@ -1321,7 +1353,7 @@ async function main() {
             moved: false,
             hasSource: true,
             hasTarget: true,
-            transparentWhileDragging,
+            iconAndTextWhileDragging,
             dragClassCleared,
           };
         }
@@ -1332,7 +1364,7 @@ async function main() {
         const names = barChildren.map((n) => n.title);
         return {
           moved: names.indexOf(textC) < names.indexOf(textA),
-          transparentWhileDragging,
+          iconAndTextWhileDragging,
           dragClassCleared,
           names,
         };
@@ -1340,7 +1372,7 @@ async function main() {
       `,
     );
     must(
-      reordered.moved && reordered.transparentWhileDragging && reordered.dragClassCleared,
+      reordered.moved && reordered.iconAndTextWhileDragging && reordered.dragClassCleared,
       `Drag-drop reorder or dragging style failed: ${JSON.stringify(reordered)}`,
     );
 

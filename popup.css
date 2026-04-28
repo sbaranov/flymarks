@@ -85,8 +85,35 @@ body {
   color: var(--hover-text);
 }
 
-.item.dragging {
-  opacity: 0.35;
+.item.dragging,
+.item.dragging:hover,
+.item.dragging.active {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none;
+  color: var(--text);
+}
+
+.item.dragging .item-icon,
+.item.dragging .item-meta {
+  opacity: 0;
+}
+
+.item.drag-image,
+.item.drag-image:hover,
+.item.drag-image.active {
+  position: fixed;
+  top: -1000px;
+  left: -1000px;
+  background: transparent !important;
+  background-color: transparent !important;
+  color: var(--text);
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.item.drag-image .item-meta {
+  opacity: 0;
 }
 
 .item.back {
