@@ -1301,18 +1301,48 @@ async function main() {
         if (!sourceRow || !targetRow) {
           return { moved: false, hasSource: Boolean(sourceRow), hasTarget: Boolean(targetRow) };
         }
+        const dataTransfer = new DataTransfer();
+        sourceRow.dispatchEvent(new DragEvent('dragstart', {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer,
+        }));
+        const transparentWhileDragging = sourceRow.classList.contains('dragging') &&
+          getComputedStyle(sourceRow).opacity === '0.35';
+        sourceRow.dispatchEvent(new DragEvent('dragend', {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer,
+        }));
+        const dragClassCleared = !sourceRow.classList.contains('dragging');
         const moved = await window.__popupTest.reorderByIds(sourceRow.dataset.nodeId, targetRow.dataset.nodeId, true);
-        if (!moved) return { moved: false, hasSource: true, hasTarget: true };
+        if (!moved) {
+          return {
+            moved: false,
+            hasSource: true,
+            hasTarget: true,
+            transparentWhileDragging,
+            dragClassCleared,
+          };
+        }
 
         const [treeRoot] = await chrome.bookmarks.getTree();
         const bar = (treeRoot.children || []).find((n) => n.id === '1') || treeRoot.children[0];
         const barChildren = await chrome.bookmarks.getChildren(bar.id);
         const names = barChildren.map((n) => n.title);
-        return { moved: names.indexOf(textC) < names.indexOf(textA), names };
+        return {
+          moved: names.indexOf(textC) < names.indexOf(textA),
+          transparentWhileDragging,
+          dragClassCleared,
+          names,
+        };
       })();
       `,
     );
-    must(reordered.moved, `Drag-drop reorder failed: ${JSON.stringify(reordered)}`);
+    must(
+      reordered.moved && reordered.transparentWhileDragging && reordered.dragClassCleared,
+      `Drag-drop reorder or dragging style failed: ${JSON.stringify(reordered)}`,
+    );
 
     const clickFolderNavigation = await cdp.eval(
       sessionId,

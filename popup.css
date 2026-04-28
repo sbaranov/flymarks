@@ -85,6 +85,10 @@ body {
   color: var(--hover-text);
 }
 
+.item.dragging {
+  opacity: 0.35;
+}
+
 .item.back {
   color: var(--muted);
 }

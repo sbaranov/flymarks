@@ -512,12 +512,14 @@ function createItem(node, source = 'main') {
       return;
     }
     state.drag = { id: node.id, sourceFolderId: state.currentFolderId };
+    item.classList.add('dragging');
     ev.dataTransfer.effectAllowed = 'move';
     ev.dataTransfer.setData('text/plain', node.id);
   });
 
   item.addEventListener('dragend', () => {
     state.drag = null;
+    item.classList.remove('dragging');
     document.querySelectorAll('.drop-before,.drop-after').forEach((el) => {
       el.classList.remove('drop-before', 'drop-after');
     });
