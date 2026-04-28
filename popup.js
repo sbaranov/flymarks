@@ -25,6 +25,7 @@ const state = {
   clipboard: null,
   drag: null,
   dragFolderEnter: null,
+  dragFolderEnterToken: 0,
   contextNodeId: null,
   settings: { ...DEFAULT_SETTINGS },
   suppressNextBookmarkRefresh: false,
@@ -200,7 +201,7 @@ async function loadRoot() {
   await enterFolder(liveBar.id, true);
 }
 
-async function enterFolder(folderId, replacePath = false) {
+async function enterFolder(folderId, replacePath = false, shouldContinue = () => true) {
   if (folderId === VIRTUAL_APPS_ID) {
     await api.createTab({ url: 'chrome://apps/', active: true });
     window.close();
@@ -212,6 +213,7 @@ async function enterFolder(folderId, replacePath = false) {
   }
 
   const subtree = await api.getSubTree(folderId);
+  if (!shouldContinue()) return;
   const folder = subtree[0];
   if (!folder || !isFolder(folder)) {
     return;
@@ -347,6 +349,7 @@ function createBackItem() {
   item.classList.add('back');
   item.draggable = false;
   const folder = state.nodesById.get(state.currentFolderId);
+  const parentFolderId = folder?.parentId || null;
   item.querySelector('.item-icon').textContent = '\u2039';
   item.querySelector('.item-title').textContent = folder?.title || 'Back';
   item.querySelector('.item-meta').textContent = '';
@@ -354,6 +357,37 @@ function createBackItem() {
     ev.stopPropagation();
     hideContextMenu();
     await goBack();
+  });
+  item.addEventListener('dragover', (ev) => {
+    if (!state.drag || !parentFolderId || isVirtualFolderId(state.currentFolderId)) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    clearDropMarkers();
+    item.classList.add('drop-into');
+    scheduleDragFolderEnter(parentFolderId);
+    ev.dataTransfer.dropEffect = 'move';
+  });
+  item.addEventListener('dragleave', () => {
+    cancelDragFolderEnter();
+    clearDropMarkers();
+  });
+  item.addEventListener('drop', async (ev) => {
+    if (!state.drag || !parentFolderId || isVirtualFolderId(state.currentFolderId)) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    cancelDragFolderEnter();
+    clearDropMarkers();
+
+    const dragId = state.drag.id;
+    const sourceFolderId = state.drag.sourceFolderId;
+    const children = sortedByIndex(await api.getChildren(parentFolderId));
+    const requestedIndex = children.filter((child) => child.id !== dragId).length;
+
+    removeDraggedItemFromDom(dragId);
+    state.suppressNextBookmarkRefresh = true;
+    const moved = await api.move(dragId, { parentId: parentFolderId, index: requestedIndex });
+    updateLocalMove(dragId, sourceFolderId, parentFolderId, moved.index ?? requestedIndex);
+    if (state.drag) state.drag.sourceFolderId = parentFolderId;
   });
   return item;
 }
@@ -454,6 +488,7 @@ function clearDropMarkers() {
 }
 
 function cancelDragFolderEnter() {
+  state.dragFolderEnterToken += 1;
   if (state.dragFolderEnter?.timer) {
     clearTimeout(state.dragFolderEnter.timer);
   }
@@ -465,13 +500,23 @@ function scheduleDragFolderEnter(folderId) {
   if (state.dragFolderEnter?.folderId === folderId) return;
 
   cancelDragFolderEnter();
+  const token = state.dragFolderEnterToken + 1;
+  state.dragFolderEnterToken = token;
   state.dragFolderEnter = {
     folderId,
     timer: setTimeout(async () => {
-      if (!state.drag || state.drag.id === folderId || state.currentFolderId === folderId) return;
+      const shouldContinue = () => (
+        state.dragFolderEnterToken === token &&
+        Boolean(state.drag) &&
+        state.drag.id !== folderId &&
+        state.currentFolderId !== folderId
+      );
+      if (!shouldContinue()) return;
       clearDropMarkers();
-      state.dragFolderEnter = null;
-      await enterFolder(folderId);
+      await enterFolder(folderId, false, shouldContinue);
+      if (state.dragFolderEnterToken === token) {
+        state.dragFolderEnter = null;
+      }
     }, DRAG_FOLDER_ENTER_DELAY),
   };
 }
