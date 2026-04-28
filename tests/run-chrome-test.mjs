@@ -1379,34 +1379,57 @@ async function main() {
             topOfLowerMarker[0]?.before === true;
         }
 
+        const list = document.querySelector('#bookmark-list');
+        const domBeforeDrop = [...list.querySelectorAll(':scope > .item[data-node-id]')]
+          .map((row) => row.dataset.nodeId);
+        let largestRemovalBatch = 0;
+        const observer = new MutationObserver((records) => {
+          for (const record of records) {
+            largestRemovalBatch = Math.max(largestRemovalBatch, record.removedNodes.length);
+          }
+        });
+        observer.observe(list, { childList: true });
+
+        const targetRect = targetRow.getBoundingClientRect();
+        targetRow.dispatchEvent(new DragEvent('drop', {
+          bubbles: true,
+          cancelable: true,
+          clientX: targetRect.left + 24,
+          clientY: targetRect.top + 2,
+          dataTransfer,
+        }));
         sourceRow.dispatchEvent(new DragEvent('dragend', {
           bubbles: true,
           cancelable: true,
           dataTransfer,
         }));
         const dragClassCleared = !sourceRow.classList.contains('dragging');
-        const moved = await window.__popupTest.reorderByIds(sourceRow.dataset.nodeId, targetRow.dataset.nodeId, true);
-        if (!moved) {
-          return {
-            moved: false,
-            hasSource: true,
-            hasTarget: true,
-            iconAndTextWhileDragging,
-            singleMarkerPerGap,
-            dragClassCleared,
-          };
-        }
 
         const [treeRoot] = await chrome.bookmarks.getTree();
         const bar = (treeRoot.children || []).find((n) => n.id === '1') || treeRoot.children[0];
-        const barChildren = await chrome.bookmarks.getChildren(bar.id);
+        let barChildren = [];
+        for (let i = 0; i < 30; i++) {
+          barChildren = await chrome.bookmarks.getChildren(bar.id);
+          const currentNames = barChildren.map((n) => n.title);
+          if (currentNames.indexOf(textC) < currentNames.indexOf(textA)) break;
+          await new Promise((r) => setTimeout(r, 80));
+        }
+        await new Promise((r) => setTimeout(r, 220));
+        observer.disconnect();
         const names = barChildren.map((n) => n.title);
+        const domAfterDrop = [...list.querySelectorAll(':scope > .item[data-node-id]')]
+          .map((row) => row.dataset.nodeId);
+        const domMovedWithoutRebuild = largestRemovalBatch <= 1 &&
+          domBeforeDrop.length === domAfterDrop.length &&
+          domAfterDrop.indexOf(sourceRow.dataset.nodeId) < domAfterDrop.indexOf(targetRow.dataset.nodeId);
         return {
           moved: names.indexOf(textC) < names.indexOf(textA),
           iconAndTextWhileDragging,
           singleMarkerPerGap,
+          domMovedWithoutRebuild,
           dragClassCleared,
           names,
+          largestRemovalBatch,
         };
       })();
       `,
@@ -1415,6 +1438,7 @@ async function main() {
       reordered.moved &&
         reordered.iconAndTextWhileDragging &&
         reordered.singleMarkerPerGap &&
+        reordered.domMovedWithoutRebuild &&
         reordered.dragClassCleared,
       `Drag-drop reorder or dragging style failed: ${JSON.stringify(reordered)}`,
     );

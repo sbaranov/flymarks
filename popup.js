@@ -24,6 +24,7 @@ const state = {
   drag: null,
   contextNodeId: null,
   settings: { ...DEFAULT_SETTINGS },
+  suppressNextBookmarkRefresh: false,
 };
 
 const api = {
@@ -465,6 +466,37 @@ function getNextDropTargetItem(item) {
   return null;
 }
 
+function updateLocalMove(nodeId, parentId, index) {
+  const parent = state.nodesById.get(parentId);
+  const node = state.nodesById.get(nodeId);
+  if (!parent?.children || !node) return;
+
+  const children = sortedByIndex(parent.children).filter((child) => child.id !== nodeId);
+  children.splice(index, 0, { ...node, parentId, index });
+  children.forEach((child, childIndex) => {
+    child.index = childIndex;
+    child.parentId = parentId;
+    state.nodesById.set(child.id, child);
+  });
+  parent.children = children;
+  state.nodesById.set(parentId, parent);
+}
+
+function moveDraggedItemInDom(dragId, targetItem, placeBefore) {
+  const sourceItem = listEl.querySelector(`.item[data-node-id="${CSS.escape(dragId)}"]`);
+  if (!sourceItem || !targetItem || sourceItem === targetItem) return;
+  if (placeBefore) {
+    listEl.insertBefore(sourceItem, targetItem);
+    return;
+  }
+  const nextItem = getNextDropTargetItem(targetItem);
+  if (nextItem) {
+    listEl.insertBefore(sourceItem, nextItem);
+  } else {
+    listEl.insertBefore(sourceItem, targetItem.nextSibling);
+  }
+}
+
 function createItem(node, source = 'main') {
   const item = itemTemplate.content.firstElementChild.cloneNode(true);
   const virtualRoot = source === 'virtual-root';
@@ -603,10 +635,12 @@ function createItem(node, source = 'main') {
 
     const rect = item.getBoundingClientRect();
     const placeBefore = ev.clientY - rect.top < rect.height / 2;
-    const nextIndex = placeBefore ? targetIndex : targetIndex + 1;
+    const requestedIndex = placeBefore ? targetIndex : targetIndex + 1;
 
-    await api.move(dragId, { parentId: state.currentFolderId, index: nextIndex });
-    await refreshCurrent();
+    moveDraggedItemInDom(dragId, item, placeBefore);
+    state.suppressNextBookmarkRefresh = true;
+    const moved = await api.move(dragId, { parentId: state.currentFolderId, index: requestedIndex });
+    updateLocalMove(dragId, state.currentFolderId, moved.index ?? requestedIndex);
   });
 
   return item;
@@ -896,6 +930,10 @@ document.addEventListener('keydown', (ev) => {
 
 let refreshTimer = null;
 function queueRefresh() {
+  if (state.suppressNextBookmarkRefresh) {
+    state.suppressNextBookmarkRefresh = false;
+    return;
+  }
   clearTimeout(refreshTimer);
   refreshTimer = setTimeout(() => {
     refreshCurrent().catch(() => {});
