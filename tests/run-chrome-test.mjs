@@ -397,6 +397,72 @@ async function main() {
     );
     must(rootNavigation.backWorks, `Back row did not return to Bookmarks Bar root: ${JSON.stringify(rootNavigation)}`);
 
+    const virtualFolderContextMenu = await cdp.eval(
+      sessionId,
+      `
+      (async () => {
+        await window.__popupTest.refreshCurrent();
+        const appsRow = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')].find((row) =>
+          row.querySelector('.item-title')?.textContent.trim() === 'Apps'
+        );
+        appsRow?.dispatchEvent(new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: 80,
+          clientY: 80,
+          button: 2,
+        }));
+        await new Promise((r) => setTimeout(r, 80));
+
+        const actions = [...document.querySelectorAll('#bookmark-list > .item.context-action')].map((row) => ({
+          label: row.querySelector('.item-title')?.textContent.trim(),
+          disabled: row.classList.contains('disabled'),
+        }));
+        const byLabel = Object.fromEntries(actions.map((action) => [action.label, action]));
+        const disabledThroughDelete = [
+          'Open All',
+          'Open All in New Window',
+          'Open All in Incognito Window',
+          'Open All in New Tab Group',
+          'Edit...',
+          'Open in Bookmarks Manager',
+          'Cut',
+          'Copy',
+          'Paste',
+          'Delete',
+        ].every((label) => byLabel[label]?.disabled === true);
+        const globalActionsEnabled = [
+          'Open Bookmarks Manager',
+          'Show Apps Shortcut',
+          'Show Tab Groups',
+          'Show Other Bookmarks',
+          'Show Mobile Bookmarks',
+        ].every((label) => byLabel[label]?.disabled === false);
+        const addActionsDisabled = byLabel['Add Page...']?.disabled === true &&
+          byLabel['Add Folder...']?.disabled === true;
+
+        return {
+          foundAppsRow: Boolean(appsRow),
+          contextOpen: window.__popupTest.getState().contextOpen,
+          separateOverlay: Boolean(document.querySelector('#context-menu')),
+          actions,
+          disabledThroughDelete,
+          addActionsDisabled,
+          globalActionsEnabled,
+        };
+      })();
+      `,
+    );
+    must(
+      virtualFolderContextMenu.foundAppsRow &&
+        virtualFolderContextMenu.contextOpen &&
+        !virtualFolderContextMenu.separateOverlay &&
+        virtualFolderContextMenu.disabledThroughDelete &&
+        virtualFolderContextMenu.addActionsDisabled &&
+        virtualFolderContextMenu.globalActionsEnabled,
+      `Virtual folder context menu mismatch: ${JSON.stringify(virtualFolderContextMenu)}`,
+    );
+
     const virtualSettingToggles = await cdp.eval(
       sessionId,
       `

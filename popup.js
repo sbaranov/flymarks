@@ -485,8 +485,8 @@ function createItem(node, source = 'main') {
   item.addEventListener('contextmenu', (ev) => {
     ev.preventDefault();
     ev.stopPropagation();
-    if (virtualNode) return;
-    openContextMenu(ev.clientX, ev.clientY, node);
+    if (virtualNode && !isFolder(node)) return;
+    openContextMenu(ev.clientX, ev.clientY, node, { virtual: virtualNode });
   });
 
   item.addEventListener('dragstart', (ev) => {
@@ -645,11 +645,13 @@ function getBookmarkManagerNodeUrl(node) {
   return getBookmarkManagerUrl({ query: node.url || node.title || '' });
 }
 
-function openContextMenu(_x, _y, node) {
+function openContextMenu(_x, _y, node, opts = {}) {
   state.contextNodeId = node.id;
   listEl.innerHTML = '';
 
   const folder = isFolder(node);
+  const virtualContext = Boolean(opts.virtual || isVirtualNode(node) || node.virtualType);
+  const addEnabled = !virtualContext || (folder && !isVirtualFolderId(node.id));
   listEl.append(createContextBackItem(node), createSeparator());
 
   if (!folder) {
@@ -658,10 +660,10 @@ function openContextMenu(_x, _y, node) {
     listEl.append(createContextAction('Open in Incognito Window', () => api.createWindow({ url: node.url, incognito: true }), { refresh: false }));
     listEl.append(separator());
   } else {
-    listEl.append(createContextAction('Open All', () => openAllInFolder(node.id, 'tab'), { refresh: false, closePopup: true }));
-    listEl.append(createContextAction('Open All in New Window', () => openAllInFolder(node.id, 'window'), { refresh: false }));
-    listEl.append(createContextAction('Open All in Incognito Window', () => openAllInFolder(node.id, 'incognito'), { refresh: false }));
-    listEl.append(createContextAction('Open All in New Tab Group', () => openAllInFolder(node.id, 'group', node.title || 'Bookmarks'), { refresh: false, closePopup: true }));
+    listEl.append(createContextAction('Open All', () => openAllInFolder(node.id, 'tab'), { refresh: false, closePopup: true, disabled: virtualContext }));
+    listEl.append(createContextAction('Open All in New Window', () => openAllInFolder(node.id, 'window'), { refresh: false, disabled: virtualContext }));
+    listEl.append(createContextAction('Open All in Incognito Window', () => openAllInFolder(node.id, 'incognito'), { refresh: false, disabled: virtualContext }));
+    listEl.append(createContextAction('Open All in New Tab Group', () => openAllInFolder(node.id, 'group', node.title || 'Bookmarks'), { refresh: false, closePopup: true, disabled: virtualContext }));
     listEl.append(separator());
   }
 
@@ -669,18 +671,18 @@ function openContextMenu(_x, _y, node) {
     const title = prompt(folder ? 'Edit folder name:' : 'Edit bookmark name:', node.title || '');
     if (title === null) return;
     await api.update(node.id, { title });
-  }));
+  }, { disabled: virtualContext }));
   listEl.append(createContextAction('Open in Bookmarks Manager', async () => {
     await api.createTab({ url: getBookmarkManagerNodeUrl(node), active: true });
-  }, { refresh: false, closePopup: true }));
+  }, { refresh: false, closePopup: true, disabled: virtualContext }));
   listEl.append(separator());
 
   listEl.append(createContextAction('Cut', async () => {
     state.clipboard = { id: node.id, mode: 'cut' };
-  }, { refresh: false }));
+  }, { refresh: false, disabled: virtualContext }));
   listEl.append(createContextAction('Copy', async () => {
     state.clipboard = { id: node.id, mode: 'copy' };
-  }, { refresh: false }));
+  }, { refresh: false, disabled: virtualContext }));
 
   const canPaste = Boolean(state.clipboard);
   listEl.append(createContextAction('Paste', async () => {
@@ -695,7 +697,7 @@ function openContextMenu(_x, _y, node) {
 
     const [source] = await chrome.bookmarks.getSubTree(state.clipboard.id);
     await cloneNode(source, destinationParentId);
-  }, { disabled: !canPaste }));
+  }, { disabled: virtualContext || !canPaste }));
   listEl.append(separator());
 
   listEl.append(createContextAction('Delete', async () => {
@@ -711,6 +713,7 @@ function openContextMenu(_x, _y, node) {
         ? `Delete folder "${title}" and all of its contents?`
         : `Delete bookmark "${title}"?`;
     },
+    disabled: virtualContext,
   }));
   listEl.append(separator());
 
@@ -721,23 +724,15 @@ function openContextMenu(_x, _y, node) {
     if (!url) return;
     const parentId = folder ? node.id : node.parentId;
     await api.create({ parentId, title, url });
-  }));
+  }, { disabled: !addEnabled }));
 
   listEl.append(createContextAction('Add Folder...', async () => {
     const title = prompt('Folder name:', 'New folder');
     if (!title) return;
     const parentId = folder ? node.id : node.parentId;
     await api.create({ parentId, title });
-  }));
+  }, { disabled: !addEnabled }));
   listEl.append(separator());
-
-  if (folder) {
-    listEl.append(createContextAction('Sort by Name', async () => {
-      const children = sortedByIndex(await api.getChildren(node.id));
-      const sorted = [...children].sort((a, b) => (a.title || '').localeCompare(b.title || ''));
-      await Promise.all(sorted.map((child, index) => api.move(child.id, { parentId: node.id, index })));
-    }));
-  }
 
   listEl.append(createContextAction('Open Bookmarks Manager', async () => {
     await api.createTab({ url: getBookmarkManagerUrl(), active: true });
