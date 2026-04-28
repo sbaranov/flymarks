@@ -8,6 +8,7 @@ const VIRTUAL_APPS_ID = 'virtual:apps';
 const VIRTUAL_TAB_GROUPS_ID = 'virtual:tab-groups';
 const VIRTUAL_TAB_GROUP_PREFIX = 'virtual:tab-group:';
 const DRAG_FOLDER_ENTER_DELAY = 550;
+const DROP_INTO_FOLDER_EDGE_RATIO = 0.25;
 const DEFAULT_SETTINGS = {
   showAppsShortcut: true,
   showTabGroups: true,
@@ -447,8 +448,8 @@ async function openBookmarkWithModifiers(node, ev = null) {
 }
 
 function clearDropMarkers() {
-  document.querySelectorAll('.drop-before,.drop-after').forEach((el) => {
-    el.classList.remove('drop-before', 'drop-after');
+  document.querySelectorAll('.drop-before,.drop-after,.drop-into').forEach((el) => {
+    el.classList.remove('drop-before', 'drop-after', 'drop-into');
   });
 }
 
@@ -532,6 +533,19 @@ function moveDraggedItemInDom(dragId, targetItem, placeBefore) {
   }
 }
 
+function removeDraggedItemFromDom(dragId) {
+  listEl.querySelector(`.item[data-node-id="${CSS.escape(dragId)}"]`)?.remove();
+}
+
+function updateFolderCounter(folderId) {
+  const folder = state.nodesById.get(folderId);
+  const row = listEl.querySelector(`.item[data-node-id="${CSS.escape(folderId)}"]`);
+  const meta = row?.querySelector('.item-meta');
+  if (folder?.children && meta) {
+    meta.textContent = String(folder.children.length);
+  }
+}
+
 function appendDraggedItemInDom(dragId) {
   const empty = listEl.querySelector(':scope > .empty');
   if (empty) empty.remove();
@@ -543,6 +557,21 @@ function appendDraggedItemInDom(dragId) {
     sourceItem = createItem(node);
   }
   listEl.append(sourceItem);
+}
+
+function getDropIntent(node, item, clientY) {
+  const rect = item.getBoundingClientRect();
+  if (isFolder(node)) {
+    const offset = clientY - rect.top;
+    const edgeSize = rect.height * DROP_INTO_FOLDER_EDGE_RATIO;
+    if (offset >= edgeSize && offset <= rect.height - edgeSize) {
+      return { type: 'into' };
+    }
+  }
+  return {
+    type: 'reorder',
+    placeBefore: clientY - rect.top < rect.height / 2,
+  };
 }
 
 function createItem(node, source = 'main') {
@@ -657,9 +686,10 @@ function createItem(node, source = 'main') {
     } else {
       cancelDragFolderEnter();
     }
-    const rect = item.getBoundingClientRect();
-    const above = ev.clientY - rect.top < rect.height / 2;
-    if (above) {
+    const intent = getDropIntent(node, item, ev.clientY);
+    if (intent.type === 'into') {
+      item.classList.add('drop-into');
+    } else if (intent.placeBefore) {
       item.classList.add('drop-before');
     } else {
       const nextItem = getNextDropTargetItem(item);
@@ -693,8 +723,21 @@ function createItem(node, source = 'main') {
     const targetIndex = children.findIndex((n) => n.id === nodeId);
     if (targetIndex < 0) return;
 
-    const rect = item.getBoundingClientRect();
-    const placeBefore = ev.clientY - rect.top < rect.height / 2;
+    const intent = getDropIntent(node, item, ev.clientY);
+    if (intent.type === 'into') {
+      const targetChildren = sortedByIndex(await api.getChildren(node.id));
+      const requestedChildIndex = targetChildren.filter((child) => child.id !== dragId).length;
+
+      removeDraggedItemFromDom(dragId);
+      state.suppressNextBookmarkRefresh = true;
+      const moved = await api.move(dragId, { parentId: node.id, index: requestedChildIndex });
+      updateLocalMove(dragId, sourceFolderId, node.id, moved.index ?? requestedChildIndex);
+      updateFolderCounter(node.id);
+      if (state.drag) state.drag.sourceFolderId = node.id;
+      return;
+    }
+
+    const placeBefore = intent.placeBefore;
     const requestedIndex = placeBefore ? targetIndex : targetIndex + 1;
 
     moveDraggedItemInDom(dragId, item, placeBefore);

@@ -1484,6 +1484,90 @@ async function main() {
       `Back row did not show clicked folder title: ${JSON.stringify(clickFolderNavigation)}`,
     );
 
+    const directDropIntoFolder = await cdp.eval(
+      sessionId,
+      `
+      (async () => {
+        await window.__popupTest.refreshCurrent();
+        await new Promise((r) => setTimeout(r, 120));
+
+        const sourceRow = [...document.querySelectorAll('#bookmark-list > .item[data-node-id]')].find((row) =>
+          row.dataset.nodeId === ${JSON.stringify(fixture.ids.c)}
+        );
+        const folderRow = [...document.querySelectorAll('#bookmark-list > .item[data-node-id]')].find((row) =>
+          row.dataset.nodeId === ${JSON.stringify(fixture.ids.emptyFolder)}
+        );
+        if (!sourceRow || !folderRow) {
+          return { moved: false, hasSource: Boolean(sourceRow), hasFolder: Boolean(folderRow) };
+        }
+
+        const dataTransfer = new DataTransfer();
+        const sourceRect = sourceRow.getBoundingClientRect();
+        sourceRow.dispatchEvent(new DragEvent('dragstart', {
+          bubbles: true,
+          cancelable: true,
+          clientX: sourceRect.left + 24,
+          clientY: sourceRect.top + 12,
+          dataTransfer,
+        }));
+
+        const folderRect = folderRow.getBoundingClientRect();
+        folderRow.dispatchEvent(new DragEvent('dragover', {
+          bubbles: true,
+          cancelable: true,
+          clientX: folderRect.left + 24,
+          clientY: folderRect.top + folderRect.height / 2,
+          dataTransfer,
+        }));
+        const dropIntoMarker = folderRow.classList.contains('drop-into') &&
+          !folderRow.classList.contains('drop-before') &&
+          !folderRow.classList.contains('drop-after');
+        folderRow.dispatchEvent(new DragEvent('drop', {
+          bubbles: true,
+          cancelable: true,
+          clientX: folderRect.left + 24,
+          clientY: folderRect.top + folderRect.height / 2,
+          dataTransfer,
+        }));
+        sourceRow.dispatchEvent(new DragEvent('dragend', {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer,
+        }));
+
+        let parentId = null;
+        for (let i = 0; i < 30; i++) {
+          const [node] = await chrome.bookmarks.get(${JSON.stringify(fixture.ids.c)});
+          parentId = node?.parentId || null;
+          if (parentId === ${JSON.stringify(fixture.ids.emptyFolder)}) break;
+          await new Promise((r) => setTimeout(r, 80));
+        }
+
+        const stillAtRoot = window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId;
+        const sourceStillVisible = [...document.querySelectorAll('#bookmark-list > .item[data-node-id]')]
+          .some((row) => row.dataset.nodeId === ${JSON.stringify(fixture.ids.c)});
+        const folderCounter = folderRow.querySelector('.item-meta')?.textContent.trim();
+
+        return {
+          moved: parentId === ${JSON.stringify(fixture.ids.emptyFolder)},
+          dropIntoMarker,
+          stillAtRoot,
+          sourceStillVisible,
+          folderCounter,
+          parentId,
+        };
+      })();
+      `,
+    );
+    must(
+      directDropIntoFolder.moved &&
+        directDropIntoFolder.dropIntoMarker &&
+        directDropIntoFolder.stillAtRoot &&
+        !directDropIntoFolder.sourceStillVisible &&
+        directDropIntoFolder.folderCounter === '1',
+      `Direct drop onto a folder row did not move inside it: ${JSON.stringify(directDropIntoFolder)}`,
+    );
+
     const dragIntoFolder = await cdp.eval(
       sessionId,
       `

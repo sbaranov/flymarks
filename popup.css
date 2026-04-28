@@ -141,7 +141,8 @@ body {
 }
 
 .item.drop-before::before,
-.item.drop-after::after {
+.item.drop-after::after,
+.item.drop-into::after {
   content: "";
   position: absolute;
   left: 6px;
@@ -152,6 +153,10 @@ body {
 
 .item.drop-before::before { top: 0; }
 .item.drop-after::after { bottom: 0; }
+.item.drop-into::after {
+  top: 50%;
+  transform: translateY(-50%);
+}
 
 .item-icon {
   width: 16px;
