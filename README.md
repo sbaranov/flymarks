@@ -61,7 +61,7 @@ PASS: Extension UI and interactions verified in live browser: ...
 - If you want to regenerate toolbar icons:
 
 ```bash
-node tests/generate-icons.mjs
+npm run icons
 ```
 
 ## Development Process
@@ -91,7 +91,7 @@ Optional:
    - `background.js`
 2. If icon assets changed, regenerate:
    ```bash
-   node tests/generate-icons.mjs
+   npm run icons
    ```
 3. Run the automated browser test:
    ```bash
