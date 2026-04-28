@@ -439,7 +439,7 @@ function createItem(node, source = 'main') {
 
   if (isFolder(node)) {
     const count = node.children?.length ?? 0;
-    item.querySelector('.item-meta').textContent = count ? String(count) : '';
+    item.querySelector('.item-meta').textContent = node.virtualType === 'apps' ? '' : String(count);
   } else {
     item.querySelector('.item-meta').textContent = '';
     const favicon = document.createElement('img');

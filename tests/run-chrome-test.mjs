@@ -208,6 +208,7 @@ async function main() {
         const suffix = Date.now().toString(36);
         const names = {
           folder: 'CodexExtTest Folder ' + suffix,
+          emptyFolder: 'CodexExtTest Empty Folder ' + suffix,
           child: 'CodexExtTest Child ' + suffix,
           a: 'CodexExtTest A ' + suffix,
           b: 'CodexExtTest B ' + suffix,
@@ -232,11 +233,12 @@ async function main() {
 
         const folder = await chrome.bookmarks.create({ parentId: bar.id, title: names.folder });
         await chrome.bookmarks.create({ parentId: folder.id, title: names.child, url: 'https://example.com/child' });
+        const emptyFolder = await chrome.bookmarks.create({ parentId: bar.id, title: names.emptyFolder });
         const a = await chrome.bookmarks.create({ parentId: bar.id, title: names.a, url: 'https://example.com/a' });
         const b = await chrome.bookmarks.create({ parentId: bar.id, title: names.b, url: 'https://example.com/b' });
         const c = await chrome.bookmarks.create({ parentId: bar.id, title: names.c, url: 'https://example.com/c' });
 
-        return { names, ids: { folder: folder.id, a: a.id, b: b.id, c: c.id }, topLevelVirtuals };
+        return { names, ids: { folder: folder.id, emptyFolder: emptyFolder.id, a: a.id, b: b.id, c: c.id }, topLevelVirtuals };
       })();
       `,
     );
@@ -263,6 +265,7 @@ async function main() {
       (async () => {
         const wanted = [
           ${JSON.stringify(fixture.names.folder)},
+          ${JSON.stringify(fixture.names.emptyFolder)},
           ${JSON.stringify(fixture.names.a)},
           ${JSON.stringify(fixture.names.b)},
           ${JSON.stringify(fixture.names.c)},
@@ -281,6 +284,28 @@ async function main() {
     );
     must(listRendered, 'Bookmark list did not render expected test entries.');
 
+    const emptyFolderCounter = await cdp.eval(
+      sessionId,
+      `
+      (() => {
+        const row = [...document.querySelectorAll('#bookmark-list > .item')].find((el) =>
+          el.querySelector('.item-title')?.textContent.includes(${JSON.stringify(fixture.names.emptyFolder)})
+        );
+        return {
+          found: Boolean(row),
+          isFolder: row?.classList.contains('folder') || false,
+          meta: row?.querySelector('.item-meta')?.textContent.trim() || '',
+        };
+      })();
+      `,
+    );
+    must(
+      emptyFolderCounter.found &&
+        emptyFolderCounter.isFolder &&
+        emptyFolderCounter.meta === '0',
+      `Empty folder did not show a 0 counter: ${JSON.stringify(emptyFolderCounter)}`,
+    );
+
     const rootNavigation = await cdp.eval(
       sessionId,
       `
@@ -296,6 +321,7 @@ async function main() {
 
         const appsShortcut = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')]
           .find((row) => row.querySelector('.item-title')?.textContent.trim() === 'Apps Shortcut');
+        const appsCounter = appsShortcut?.querySelector('.item-meta')?.textContent.trim() || '';
         const orig = { create: chrome.tabs.create, close: window.close };
         const appsCalls = { create: null, closeCount: 0 };
         chrome.tabs.create = async (payload) => {
@@ -326,13 +352,14 @@ async function main() {
         const backWorks = window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId &&
           !document.querySelector('#bookmark-list > .item.back');
 
-        return { toolbarGone, virtualsFirst, appsCalls, enteredVirtual, virtualBackLabel, backWorks };
+        return { toolbarGone, virtualsFirst, appsCounter, appsCalls, enteredVirtual, virtualBackLabel, backWorks };
       })();
       `,
     );
     must(rootNavigation.toolbarGone, 'Popup toolbar/header is still rendered.');
     must(rootNavigation.virtualsFirst, `Virtual root folders were not rendered first: ${JSON.stringify(rootNavigation)}`);
     must(
+      rootNavigation.appsCounter === '' &&
       rootNavigation.appsCalls.create?.url === 'chrome://apps/' &&
         rootNavigation.appsCalls.create?.active === true &&
         rootNavigation.appsCalls.closeCount > 0,
@@ -974,6 +1001,8 @@ async function main() {
       sessionId,
       `
       (async () => {
+        await window.__popupTest.refreshCurrent();
+        await new Promise((r) => setTimeout(r, 120));
         const textC = ${JSON.stringify(fixture.names.c)};
         const textA = ${JSON.stringify(fixture.names.a)};
 
@@ -983,18 +1012,21 @@ async function main() {
         const targetRow = [...document.querySelectorAll('.item')].find((el) =>
           el.querySelector('.item-title')?.textContent.includes(textA)
         );
+        if (!sourceRow || !targetRow) {
+          return { moved: false, hasSource: Boolean(sourceRow), hasTarget: Boolean(targetRow) };
+        }
         const moved = await window.__popupTest.reorderByIds(sourceRow.dataset.nodeId, targetRow.dataset.nodeId, true);
-        if (!moved) return false;
+        if (!moved) return { moved: false, hasSource: true, hasTarget: true };
 
         const [treeRoot] = await chrome.bookmarks.getTree();
         const bar = (treeRoot.children || []).find((n) => n.id === '1') || treeRoot.children[0];
         const barChildren = await chrome.bookmarks.getChildren(bar.id);
         const names = barChildren.map((n) => n.title);
-        return names.indexOf(textC) < names.indexOf(textA);
+        return { moved: names.indexOf(textC) < names.indexOf(textA), names };
       })();
       `,
     );
-    must(reordered, 'Drag-drop reorder failed.');
+    must(reordered.moved, `Drag-drop reorder failed: ${JSON.stringify(reordered)}`);
 
     const clickFolderNavigation = await cdp.eval(
       sessionId,
