@@ -289,22 +289,33 @@ async function main() {
           !document.querySelector('#back-btn') &&
           !document.querySelector('#refresh-btn');
 
-        const virtualTitles = ${JSON.stringify(fixture.topLevelVirtuals.map((n) => n.title))};
+        const virtualTitles = ${JSON.stringify(['Apps Shortcut', 'Tab Groups', ...fixture.topLevelVirtuals.map((n) => n.title)])};
         const rowTitles = [...document.querySelectorAll('#bookmark-list > .item .item-title')]
           .map((el) => el.textContent.trim());
         const virtualsFirst = virtualTitles.every((title, index) => rowTitles[index] === title);
 
-        if (!virtualTitles.length) {
-          return { toolbarGone, virtualsFirst: true, backWorks: true };
-        }
+        const appsShortcut = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')]
+          .find((row) => row.querySelector('.item-title')?.textContent.trim() === 'Apps Shortcut');
+        const orig = { create: chrome.tabs.create, close: window.close };
+        const appsCalls = { create: null, closeCount: 0 };
+        chrome.tabs.create = async (payload) => {
+          appsCalls.create = payload;
+          return { id: 777, ...payload };
+        };
+        window.close = () => { appsCalls.closeCount += 1; };
+        appsShortcut?.click();
+        await new Promise((r) => setTimeout(r, 80));
+        chrome.tabs.create = orig.create;
+        window.close = orig.close;
 
-        const firstVirtual = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')][0];
-        firstVirtual.click();
+        const tabGroupsVirtual = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')]
+          .find((row) => row.querySelector('.item-title')?.textContent.trim() === 'Tab Groups');
+        tabGroupsVirtual.click();
         for (let i = 0; i < 20; i++) {
           if (document.querySelector('#bookmark-list > .item.back')) break;
           await new Promise((r) => setTimeout(r, 80));
         }
-        const enteredVirtual = window.__popupTest.getState().currentFolderId === ${JSON.stringify(fixture.topLevelVirtuals[0]?.id)};
+        const enteredVirtual = window.__popupTest.getState().currentFolderId === 'virtual:tab-groups';
         const virtualBackLabel = document.querySelector('#bookmark-list > .item.back .item-title')?.textContent.trim();
 
         document.querySelector('#bookmark-list > .item.back')?.click();
@@ -315,18 +326,102 @@ async function main() {
         const backWorks = window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId &&
           !document.querySelector('#bookmark-list > .item.back');
 
-        return { toolbarGone, virtualsFirst, enteredVirtual, virtualBackLabel, backWorks };
+        return { toolbarGone, virtualsFirst, appsCalls, enteredVirtual, virtualBackLabel, backWorks };
       })();
       `,
     );
     must(rootNavigation.toolbarGone, 'Popup toolbar/header is still rendered.');
     must(rootNavigation.virtualsFirst, `Virtual root folders were not rendered first: ${JSON.stringify(rootNavigation)}`);
+    must(
+      rootNavigation.appsCalls.create?.url === 'chrome://apps/' &&
+        rootNavigation.appsCalls.create?.active === true &&
+        rootNavigation.appsCalls.closeCount > 0,
+      `Apps Shortcut did not open chrome://apps/: ${JSON.stringify(rootNavigation)}`,
+    );
     must(rootNavigation.enteredVirtual !== false, `Virtual root folder did not open: ${JSON.stringify(rootNavigation)}`);
     must(
-      rootNavigation.virtualBackLabel === fixture.topLevelVirtuals[0]?.title,
+      rootNavigation.virtualBackLabel === 'Tab Groups',
       `Back row did not show current folder title: ${JSON.stringify(rootNavigation)}`,
     );
     must(rootNavigation.backWorks, `Back row did not return to Bookmarks Bar root: ${JSON.stringify(rootNavigation)}`);
+
+    const tabGroupsVirtualFolder = await cdp.eval(
+      sessionId,
+      `
+      (async () => {
+        const firstTab = await chrome.tabs.create({ url: 'https://example.com/#codex-tab-group-a', active: false });
+        const secondTab = await chrome.tabs.create({ url: 'https://example.com/#codex-tab-group-b', active: false });
+        const groupId = await chrome.tabs.group({ tabIds: [firstTab.id, secondTab.id] });
+        await chrome.tabGroups.update(groupId, { title: 'Codex Test Group' });
+        await window.__popupTest.refreshCurrent();
+
+        const tabGroupsRow = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')].find((row) =>
+          row.querySelector('.item-title')?.textContent.trim() === 'Tab Groups'
+        );
+        tabGroupsRow?.click();
+        for (let i = 0; i < 20; i++) {
+          const found = [...document.querySelectorAll('#bookmark-list > .item .item-title')]
+            .some((el) => el.textContent.trim() === 'Codex Test Group');
+          if (found) break;
+          await new Promise((r) => setTimeout(r, 80));
+        }
+
+        const groupVisible = [...document.querySelectorAll('#bookmark-list > .item .item-title')]
+          .some((el) => el.textContent.trim() === 'Codex Test Group');
+        const groupRow = [...document.querySelectorAll('#bookmark-list > .item')].find((row) =>
+          row.querySelector('.item-title')?.textContent.trim() === 'Codex Test Group'
+        );
+        groupRow?.click();
+        for (let i = 0; i < 20; i++) {
+          const found = [...document.querySelectorAll('#bookmark-list > .item.bookmark')].length >= 2;
+          if (found) break;
+          await new Promise((r) => setTimeout(r, 80));
+        }
+
+        const backLabel = document.querySelector('#bookmark-list > .item.back .item-title')?.textContent.trim();
+        const tabRows = [...document.querySelectorAll('#bookmark-list > .item.bookmark')];
+        const tabVisible = tabRows.length >= 2;
+
+        const orig = { update: chrome.tabs.update, close: window.close };
+        const calls = { update: null, closeCount: 0 };
+        chrome.tabs.update = async (id, payload) => {
+          calls.update = { id, payload };
+          return { id, ...payload };
+        };
+        window.close = () => { calls.closeCount += 1; };
+        tabRows[0]?.click();
+        await new Promise((r) => setTimeout(r, 80));
+        chrome.tabs.update = orig.update;
+        window.close = orig.close;
+
+        document.querySelector('#bookmark-list > .item.back')?.click();
+        await new Promise((r) => setTimeout(r, 80));
+        document.querySelector('#bookmark-list > .item.back')?.click();
+        for (let i = 0; i < 20; i++) {
+          if (window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId) break;
+          await new Promise((r) => setTimeout(r, 80));
+        }
+
+        return {
+          groupId,
+          groupVisible,
+          backLabel,
+          tabVisible,
+          calls,
+          returnedToRoot: window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId,
+        };
+      })();
+      `,
+    );
+    must(
+      tabGroupsVirtualFolder.groupVisible &&
+        tabGroupsVirtualFolder.backLabel === 'Codex Test Group' &&
+        tabGroupsVirtualFolder.tabVisible &&
+        tabGroupsVirtualFolder.calls.update?.payload?.active === true &&
+        tabGroupsVirtualFolder.calls.closeCount > 0 &&
+        tabGroupsVirtualFolder.returnedToRoot,
+      `Tab Groups virtual folder did not navigate groups/tabs correctly: ${JSON.stringify(tabGroupsVirtualFolder)}`,
+    );
 
     const malformedNodesHandled = await cdp.eval(
       sessionId,

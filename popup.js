@@ -3,6 +3,9 @@ const itemTemplate = document.getElementById('item-template');
 
 const SNAPSHOT_KEY = 'bookmarksBarSnapshotV1';
 const SNAPSHOT_LOCAL_KEY = 'bookmarksBarSnapshotLocalV1';
+const VIRTUAL_APPS_ID = 'virtual:apps';
+const VIRTUAL_TAB_GROUPS_ID = 'virtual:tab-groups';
+const VIRTUAL_TAB_GROUP_PREFIX = 'virtual:tab-group:';
 
 const state = {
   rootFolderId: null,
@@ -29,6 +32,7 @@ const api = {
   updateTab: (id, payload) => chrome.tabs.update(id, payload),
   queryTabs: (payload) => chrome.tabs.query(payload),
   groupTabs: (payload) => chrome.tabs.group(payload),
+  queryTabGroups: (payload) => chrome.tabGroups.query(payload),
   updateTabGroup: (id, payload) => chrome.tabGroups.update(id, payload),
   createWindow: (payload) => chrome.windows.create(payload),
   storageGet: (key) => chrome.storage.local.get(key),
@@ -41,6 +45,14 @@ function isBookmark(node) {
 
 function isFolder(node) {
   return Boolean(node) && !isBookmark(node);
+}
+
+function isVirtualNode(node) {
+  return typeof node?.id === 'string' && node.id.startsWith('virtual:');
+}
+
+function isVirtualFolderId(folderId) {
+  return typeof folderId === 'string' && folderId.startsWith('virtual:');
 }
 
 function getFaviconUrl(url) {
@@ -91,10 +103,15 @@ function loadSnapshotSync() {
 }
 
 function getVirtualRootFolders() {
-  return sortedByIndex(state.topLevelFolders).filter((node) => (
+  const rootFolders = sortedByIndex(state.topLevelFolders).filter((node) => (
     node.id !== state.rootFolderId &&
     (node.id === '2' || node.id === '3' || /^(other|mobile) bookmarks$/i.test(node.title || ''))
   ));
+  return [
+    { id: VIRTUAL_APPS_ID, title: 'Apps Shortcut', index: -2, virtualType: 'apps' },
+    { id: VIRTUAL_TAB_GROUPS_ID, title: 'Tab Groups', index: -1, virtualType: 'tab-groups-root' },
+    ...rootFolders,
+  ];
 }
 
 function isRootView() {
@@ -134,6 +151,16 @@ async function loadRoot() {
 }
 
 async function enterFolder(folderId, replacePath = false) {
+  if (folderId === VIRTUAL_APPS_ID) {
+    await api.createTab({ url: 'chrome://apps/', active: true });
+    window.close();
+    return;
+  }
+  if (isVirtualFolderId(folderId)) {
+    await enterVirtualFolder(folderId, replacePath);
+    return;
+  }
+
   const subtree = await api.getSubTree(folderId);
   const folder = subtree[0];
   if (!folder || !isFolder(folder)) {
@@ -155,6 +182,81 @@ async function enterFolder(folderId, replacePath = false) {
 
   state.currentFolderId = folder.id;
   renderList(folder.children || []);
+}
+
+async function enterVirtualFolder(folderId, replacePath = false) {
+  const folder = await getVirtualFolder(folderId);
+  if (!folder) return;
+
+  state.nodesById.set(folder.id, folder);
+  (folder.children || []).forEach((child) => state.nodesById.set(child.id, { ...child, parentId: folder.id }));
+
+  if (replacePath) {
+    state.path = [state.nodesById.get(state.rootFolderId), folder].filter(Boolean);
+  } else {
+    const currentIx = state.path.findIndex((n) => n.id === folder.id);
+    if (currentIx >= 0) {
+      state.path = state.path.slice(0, currentIx + 1);
+    } else {
+      state.path.push(folder);
+    }
+  }
+
+  state.currentFolderId = folder.id;
+  renderList(folder.children || []);
+}
+
+async function getVirtualFolder(folderId) {
+  if (folderId === VIRTUAL_TAB_GROUPS_ID) {
+    const groups = await api.queryTabGroups({});
+    const groupNodes = sortedByIndex(groups.map((group, index) => ({
+      id: `${VIRTUAL_TAB_GROUP_PREFIX}${group.id}`,
+      title: group.title || 'Unnamed Group',
+      index,
+      parentId: VIRTUAL_TAB_GROUPS_ID,
+      virtualType: 'tab-group',
+      tabGroupId: group.id,
+      color: group.color,
+    })));
+    return {
+      id: VIRTUAL_TAB_GROUPS_ID,
+      title: 'Tab Groups',
+      parentId: state.rootFolderId,
+      virtualType: 'tab-groups-root',
+      children: groupNodes,
+    };
+  }
+
+  if (folderId.startsWith(VIRTUAL_TAB_GROUP_PREFIX)) {
+    const groupId = Number(folderId.slice(VIRTUAL_TAB_GROUP_PREFIX.length));
+    if (!Number.isFinite(groupId)) return null;
+    const [group, tabs] = await Promise.all([
+      api.queryTabGroups({}).then((groups) => groups.find((g) => g.id === groupId)),
+      api.queryTabs({ groupId }),
+    ]);
+    const children = sortedByIndex(tabs.map((tab) => ({
+      id: `virtual:tab:${tab.id}`,
+      title: tab.title || tab.url || tab.pendingUrl || 'Untitled Tab',
+      url: tab.url || tab.pendingUrl || '',
+      index: tab.index,
+      parentId: folderId,
+      virtualType: 'tab',
+      tabId: tab.id,
+      windowId: tab.windowId,
+      favIconUrl: tab.favIconUrl,
+    })));
+    return {
+      id: folderId,
+      title: group?.title || 'Unnamed Group',
+      parentId: VIRTUAL_TAB_GROUPS_ID,
+      virtualType: 'tab-group',
+      tabGroupId: groupId,
+      color: group?.color,
+      children,
+    };
+  }
+
+  return null;
 }
 
 function computePath(folderId) {
@@ -250,6 +352,12 @@ function renderList(children, opts = {}) {
 async function openBookmarkWithModifiers(node, ev = null) {
   if (!isBookmark(node)) return;
 
+  if (node.virtualType === 'tab' && node.tabId) {
+    await api.updateTab(node.tabId, { active: true });
+    window.close();
+    return;
+  }
+
   const modifierOpenTab = Boolean(ev && (ev.metaKey || ev.ctrlKey || ev.button === 1));
   const openWindow = Boolean(ev && ev.shiftKey);
 
@@ -275,6 +383,7 @@ async function openBookmarkWithModifiers(node, ev = null) {
 function createItem(node, source = 'main') {
   const item = itemTemplate.content.firstElementChild.cloneNode(true);
   const virtualRoot = source === 'virtual-root';
+  const virtualNode = virtualRoot || isVirtualNode(node);
   if (!node) {
     item.classList.add('folder');
     item.querySelector('.item-title').textContent = 'Untitled';
@@ -283,7 +392,7 @@ function createItem(node, source = 'main') {
   }
 
   item.classList.add(isFolder(node) ? 'folder' : 'bookmark');
-  if (virtualRoot) {
+  if (virtualNode) {
     item.classList.add('virtual-root');
     item.draggable = false;
   }
@@ -329,12 +438,12 @@ function createItem(node, source = 'main') {
   item.addEventListener('contextmenu', (ev) => {
     ev.preventDefault();
     ev.stopPropagation();
-    if (virtualRoot) return;
+    if (virtualNode) return;
     openContextMenu(ev.clientX, ev.clientY, node);
   });
 
   item.addEventListener('dragstart', (ev) => {
-    if (virtualRoot) {
+    if (virtualNode) {
       ev.preventDefault();
       return;
     }
@@ -351,7 +460,7 @@ function createItem(node, source = 'main') {
   });
 
   item.addEventListener('dragover', (ev) => {
-    if (virtualRoot) return;
+    if (virtualNode) return;
     const nodeId = node?.id;
     if (!nodeId || !state.drag || state.drag.id === nodeId) return;
     ev.preventDefault();
@@ -367,7 +476,7 @@ function createItem(node, source = 'main') {
   });
 
   item.addEventListener('drop', async (ev) => {
-    if (virtualRoot) return;
+    if (virtualNode) return;
     ev.preventDefault();
     item.classList.remove('drop-before', 'drop-after');
 
@@ -604,6 +713,10 @@ async function cloneNode(sourceNode, parentId) {
 
 async function refreshCurrent() {
   if (!state.currentFolderId) return;
+  if (isVirtualFolderId(state.currentFolderId)) {
+    await enterVirtualFolder(state.currentFolderId, true);
+    return;
+  }
   const [treeRoot] = await api.getTree();
   state.topLevelFolders = treeRoot?.children || [];
   hydrateNodes({ ...treeRoot, parentId: null });
@@ -616,6 +729,11 @@ async function refreshCurrent() {
 }
 
 function renderCurrentFolderFromState() {
+  if (isVirtualFolderId(state.currentFolderId)) {
+    const folder = state.nodesById.get(state.currentFolderId);
+    renderList(folder?.children || []);
+    return;
+  }
   const folder = state.nodesById.get(state.currentFolderId);
   renderList(folder?.children || []);
 }
