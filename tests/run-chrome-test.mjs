@@ -1341,6 +1341,44 @@ async function main() {
           dragImageCall?.x === 24 &&
           dragImageCall?.y === 12;
         sourceRow.classList.remove('active');
+
+        const markerState = () => [...document.querySelectorAll('.drop-before,.drop-after')].map((row) => ({
+          id: row.dataset.nodeId,
+          before: row.classList.contains('drop-before'),
+          after: row.classList.contains('drop-after'),
+        }));
+        const rows = [...document.querySelectorAll('#bookmark-list > .item[data-node-id]')]
+          .filter((row) => !row.classList.contains('virtual-root') && row !== sourceRow);
+        const lowerRow = targetRow;
+        const lowerIndex = rows.indexOf(lowerRow);
+        const upperRow = lowerIndex > 0 ? rows[lowerIndex - 1] : null;
+        let singleMarkerPerGap = false;
+        if (upperRow) {
+          const upperRect = upperRow.getBoundingClientRect();
+          const lowerRect = lowerRow.getBoundingClientRect();
+          upperRow.dispatchEvent(new DragEvent('dragover', {
+            bubbles: true,
+            cancelable: true,
+            clientX: upperRect.left + 24,
+            clientY: upperRect.bottom - 2,
+            dataTransfer,
+          }));
+          const bottomOfUpperMarker = markerState();
+          lowerRow.dispatchEvent(new DragEvent('dragover', {
+            bubbles: true,
+            cancelable: true,
+            clientX: lowerRect.left + 24,
+            clientY: lowerRect.top + 2,
+            dataTransfer,
+          }));
+          const topOfLowerMarker = markerState();
+          singleMarkerPerGap = bottomOfUpperMarker.length === 1 &&
+            topOfLowerMarker.length === 1 &&
+            JSON.stringify(bottomOfUpperMarker) === JSON.stringify(topOfLowerMarker) &&
+            topOfLowerMarker[0]?.id === lowerRow.dataset.nodeId &&
+            topOfLowerMarker[0]?.before === true;
+        }
+
         sourceRow.dispatchEvent(new DragEvent('dragend', {
           bubbles: true,
           cancelable: true,
@@ -1354,6 +1392,7 @@ async function main() {
             hasSource: true,
             hasTarget: true,
             iconAndTextWhileDragging,
+            singleMarkerPerGap,
             dragClassCleared,
           };
         }
@@ -1365,6 +1404,7 @@ async function main() {
         return {
           moved: names.indexOf(textC) < names.indexOf(textA),
           iconAndTextWhileDragging,
+          singleMarkerPerGap,
           dragClassCleared,
           names,
         };
@@ -1372,7 +1412,10 @@ async function main() {
       `,
     );
     must(
-      reordered.moved && reordered.iconAndTextWhileDragging && reordered.dragClassCleared,
+      reordered.moved &&
+        reordered.iconAndTextWhileDragging &&
+        reordered.singleMarkerPerGap &&
+        reordered.dragClassCleared,
       `Drag-drop reorder or dragging style failed: ${JSON.stringify(reordered)}`,
     );
 

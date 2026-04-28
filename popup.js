@@ -443,6 +443,28 @@ async function openBookmarkWithModifiers(node, ev = null) {
   window.close();
 }
 
+function clearDropMarkers() {
+  document.querySelectorAll('.drop-before,.drop-after').forEach((el) => {
+    el.classList.remove('drop-before', 'drop-after');
+  });
+}
+
+function getNextDropTargetItem(item) {
+  let next = item.nextElementSibling;
+  while (next) {
+    if (
+      next.classList.contains('item') &&
+      !next.classList.contains('virtual-root') &&
+      !next.classList.contains('context-action') &&
+      !next.classList.contains('back')
+    ) {
+      return next;
+    }
+    next = next.nextElementSibling;
+  }
+  return null;
+}
+
 function createItem(node, source = 'main') {
   const item = itemTemplate.content.firstElementChild.cloneNode(true);
   const virtualRoot = source === 'virtual-root';
@@ -534,31 +556,42 @@ function createItem(node, source = 'main') {
   item.addEventListener('dragend', () => {
     state.drag = null;
     item.classList.remove('dragging');
-    document.querySelectorAll('.drop-before,.drop-after').forEach((el) => {
-      el.classList.remove('drop-before', 'drop-after');
-    });
+    clearDropMarkers();
   });
 
   item.addEventListener('dragover', (ev) => {
     if (virtualNode) return;
     const nodeId = node?.id;
-    if (!nodeId || !state.drag || state.drag.id === nodeId) return;
+    if (!nodeId || !state.drag) return;
+    if (state.drag.id === nodeId) {
+      clearDropMarkers();
+      return;
+    }
     ev.preventDefault();
+    clearDropMarkers();
     const rect = item.getBoundingClientRect();
     const above = ev.clientY - rect.top < rect.height / 2;
-    item.classList.toggle('drop-before', above);
-    item.classList.toggle('drop-after', !above);
+    if (above) {
+      item.classList.add('drop-before');
+    } else {
+      const nextItem = getNextDropTargetItem(item);
+      if (nextItem) {
+        nextItem.classList.add('drop-before');
+      } else {
+        item.classList.add('drop-after');
+      }
+    }
     ev.dataTransfer.dropEffect = 'move';
   });
 
   item.addEventListener('dragleave', () => {
-    item.classList.remove('drop-before', 'drop-after');
+    clearDropMarkers();
   });
 
   item.addEventListener('drop', async (ev) => {
     if (virtualNode) return;
     ev.preventDefault();
-    item.classList.remove('drop-before', 'drop-after');
+    clearDropMarkers();
 
     const nodeId = node?.id;
     const dragId = state.drag?.id;
