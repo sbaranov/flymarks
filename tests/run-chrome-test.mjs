@@ -1332,7 +1332,7 @@ async function main() {
           rowStyle.boxShadow === 'none' &&
           rowStyle.opacity === '1' &&
           iconStyle.opacity === '1' &&
-          metaStyle.opacity === '0' &&
+          metaStyle.opacity === '1' &&
           Boolean(dragImageIcon) &&
           dragImageTitle?.textContent === sourceRow.querySelector('.item-title')?.textContent &&
           dragImageStyle?.backgroundColor === 'rgba(0, 0, 0, 0)' &&

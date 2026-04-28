@@ -94,10 +94,6 @@ body {
   color: var(--text);
 }
 
-.item.dragging .item-meta {
-  opacity: 0;
-}
-
 .item.drag-image,
 .item.drag-image:hover,
 .item.drag-image.active {
