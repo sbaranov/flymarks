@@ -255,14 +255,18 @@ async function enterVirtualFolder(folderId, replacePath = false) {
 async function getVirtualFolder(folderId) {
   if (folderId === VIRTUAL_TAB_GROUPS_ID) {
     const groups = await api.queryTabGroups({});
-    const groupNodes = sortedByIndex(groups.map((group, index) => ({
-      id: `${VIRTUAL_TAB_GROUP_PREFIX}${group.id}`,
-      title: group.title || 'Unnamed Group',
-      index,
-      parentId: VIRTUAL_TAB_GROUPS_ID,
-      virtualType: 'tab-group',
-      tabGroupId: group.id,
-      color: group.color,
+    const groupNodes = sortedByIndex(await Promise.all(groups.map(async (group, index) => {
+      const tabs = await api.queryTabs({ groupId: group.id });
+      return {
+        id: `${VIRTUAL_TAB_GROUP_PREFIX}${group.id}`,
+        title: group.title || 'Unnamed Group',
+        index,
+        parentId: VIRTUAL_TAB_GROUPS_ID,
+        virtualType: 'tab-group',
+        tabGroupId: group.id,
+        color: group.color,
+        children: tabs.map((tab) => ({ id: `virtual:tab:${tab.id}` })),
+      };
     })));
     return {
       id: VIRTUAL_TAB_GROUPS_ID,

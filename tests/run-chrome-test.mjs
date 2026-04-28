@@ -622,6 +622,7 @@ async function main() {
         const groupRow = [...document.querySelectorAll('#bookmark-list > .item')].find((row) =>
           row.querySelector('.item-title')?.textContent.trim() === 'Codex Test Group'
         );
+        const groupCounter = groupRow?.querySelector('.item-meta')?.textContent.trim();
         groupRow?.click();
         for (let i = 0; i < 20; i++) {
           const found = [...document.querySelectorAll('#bookmark-list > .item.bookmark')].length >= 2;
@@ -657,6 +658,7 @@ async function main() {
           groupId,
           rootCounter,
           groupVisible,
+          groupCounter,
           backLabel,
           tabVisible,
           calls,
@@ -668,6 +670,7 @@ async function main() {
     must(
       tabGroupsVirtualFolder.groupVisible &&
         Number(tabGroupsVirtualFolder.rootCounter) >= 1 &&
+        tabGroupsVirtualFolder.groupCounter === '2' &&
         tabGroupsVirtualFolder.backLabel === 'Codex Test Group' &&
         tabGroupsVirtualFolder.tabVisible &&
         tabGroupsVirtualFolder.calls.update?.payload?.active === true &&
