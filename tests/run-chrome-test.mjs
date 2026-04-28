@@ -444,6 +444,92 @@ async function main() {
       `Meta-click behavior mismatch: ${JSON.stringify(clickBehavior.meta)}`,
     );
 
+    const openAllInTabGroup = await cdp.eval(
+      sessionId,
+      `
+      (async () => {
+        await window.__popupTest.refreshCurrent();
+        const folderText = ${JSON.stringify(fixture.names.folder)};
+        const folderRow = [...document.querySelectorAll('.item')].find((el) =>
+          el.querySelector('.item-title')?.textContent.includes(folderText)
+        );
+
+        folderRow.dispatchEvent(new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: 120,
+          clientY: 120,
+          button: 2,
+        }));
+
+        const actionLabels = [...document.querySelectorAll('#bookmark-list > .item.context-action .item-title')]
+          .map((el) => el.textContent.trim());
+        const groupBtn = [...document.querySelectorAll('#bookmark-list > .item.context-action')].find((el) =>
+          el.textContent.trim() === 'Open All in New Tab Group'
+        );
+        if (!groupBtn) return { ok: false, actionLabels };
+
+        const orig = {
+          create: chrome.tabs.create,
+          group: chrome.tabs.group,
+          update: chrome.tabs.update,
+          tabGroupUpdate: chrome.tabGroups.update,
+          close: window.close,
+        };
+        const calls = { created: [], grouped: null, groupUpdate: null, activated: null, closeCount: 0 };
+        chrome.tabs.create = async (payload) => {
+          const tab = { id: 700 + calls.created.length, ...payload };
+          calls.created.push(payload);
+          return tab;
+        };
+        chrome.tabs.group = async (payload) => {
+          calls.grouped = payload;
+          return 321;
+        };
+        chrome.tabGroups.update = async (id, payload) => {
+          calls.groupUpdate = { id, payload };
+          return {};
+        };
+        chrome.tabs.update = async (id, payload) => {
+          calls.activated = { id, payload };
+          return {};
+        };
+        window.close = () => { calls.closeCount += 1; };
+
+        groupBtn.click();
+        await new Promise((r) => setTimeout(r, 120));
+
+        chrome.tabs.create = orig.create;
+        chrome.tabs.group = orig.group;
+        chrome.tabs.update = orig.update;
+        chrome.tabGroups.update = orig.tabGroupUpdate;
+        window.close = orig.close;
+
+        return {
+          ok: true,
+          actionLabels,
+          calls,
+          contextOpen: window.__popupTest.getState().contextOpen,
+        };
+      })();
+      `,
+    );
+    must(
+      openAllInTabGroup.ok &&
+        openAllInTabGroup.actionLabels.includes('Open All in New Tab Group') &&
+        openAllInTabGroup.calls.created.length === 1 &&
+        openAllInTabGroup.calls.created[0].url === 'https://example.com/child' &&
+        openAllInTabGroup.calls.created[0].active === false &&
+        JSON.stringify(openAllInTabGroup.calls.grouped?.tabIds) === JSON.stringify([700]) &&
+        openAllInTabGroup.calls.groupUpdate?.id === 321 &&
+        openAllInTabGroup.calls.groupUpdate?.payload?.title === fixture.names.folder &&
+        openAllInTabGroup.calls.activated?.id === 700 &&
+        openAllInTabGroup.calls.activated?.payload?.active === true &&
+        openAllInTabGroup.calls.closeCount > 0 &&
+        !openAllInTabGroup.contextOpen,
+      `Open All in New Tab Group behavior mismatch: ${JSON.stringify(openAllInTabGroup)}`,
+    );
+
     const deletedViaContext = await cdp.eval(
       sessionId,
       `

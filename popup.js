@@ -28,6 +28,8 @@ const api = {
   createTab: (payload) => chrome.tabs.create(payload),
   updateTab: (id, payload) => chrome.tabs.update(id, payload),
   queryTabs: (payload) => chrome.tabs.query(payload),
+  groupTabs: (payload) => chrome.tabs.group(payload),
+  updateTabGroup: (id, payload) => chrome.tabGroups.update(id, payload),
   createWindow: (payload) => chrome.windows.create(payload),
   storageGet: (key) => chrome.storage.local.get(key),
   storageSet: (obj) => chrome.storage.local.set(obj),
@@ -433,7 +435,7 @@ function createContextAction(label, action, opts = {}) {
   return item;
 }
 
-async function openAllInFolder(folderId, mode = 'tab') {
+async function openAllInFolder(folderId, mode = 'tab', folderTitle = '') {
   const children = sortedByIndex(await api.getChildren(folderId));
   const urls = children.filter((c) => c.url).map((c) => c.url);
   if (!urls.length) return;
@@ -444,6 +446,18 @@ async function openAllInFolder(folderId, mode = 'tab') {
   }
   if (mode === 'incognito') {
     await api.createWindow({ url: urls, incognito: true });
+    return;
+  }
+  if (mode === 'group') {
+    const tabs = await Promise.all(urls.map((url) => api.createTab({ url, active: false })));
+    const tabIds = tabs.map((tab) => tab.id).filter(Boolean);
+    if (!tabIds.length) return;
+
+    const groupId = await api.groupTabs({ tabIds });
+    if (folderTitle) {
+      await api.updateTabGroup(groupId, { title: folderTitle });
+    }
+    await api.updateTab(tabIds[0], { active: true });
     return;
   }
 
@@ -476,6 +490,7 @@ function openContextMenu(_x, _y, node) {
     listEl.append(createContextAction('Open All', () => openAllInFolder(node.id, 'tab'), { refresh: false, closePopup: true }));
     listEl.append(createContextAction('Open All in New Window', () => openAllInFolder(node.id, 'window'), { refresh: false }));
     listEl.append(createContextAction('Open All in Incognito Window', () => openAllInFolder(node.id, 'incognito'), { refresh: false }));
+    listEl.append(createContextAction('Open All in New Tab Group', () => openAllInFolder(node.id, 'group', node.title || 'Bookmarks'), { refresh: false, closePopup: true }));
     listEl.append(separator());
   }
 
