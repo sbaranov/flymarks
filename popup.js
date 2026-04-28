@@ -24,6 +24,7 @@ const state = {
   nodesById: new Map(),
   clipboard: null,
   drag: null,
+  lastDropIntent: null,
   dragFolderEnter: null,
   dragFolderEnterToken: 0,
   contextNodeId: null,
@@ -362,6 +363,7 @@ function createBackItem() {
     if (!state.drag || !parentFolderId || isVirtualFolderId(state.currentFolderId)) return;
     ev.preventDefault();
     ev.stopPropagation();
+    clearLastDropIntent();
     clearDropMarkers();
     item.classList.add('drop-into');
     scheduleDragFolderEnter(parentFolderId);
@@ -485,6 +487,10 @@ function clearDropMarkers() {
   document.querySelectorAll('.drop-before,.drop-after,.drop-into').forEach((el) => {
     el.classList.remove('drop-before', 'drop-after', 'drop-into');
   });
+}
+
+function clearLastDropIntent() {
+  state.lastDropIntent = null;
 }
 
 function cancelDragFolderEnter() {
@@ -624,6 +630,73 @@ function getDropIntent(node, item, clientY) {
   };
 }
 
+async function moveDragIntoFolder(folderId, drag = state.drag) {
+  const dragId = drag?.id;
+  const sourceFolderId = drag?.sourceFolderId;
+  if (!dragId || !sourceFolderId) return false;
+
+  const targetChildren = sortedByIndex(await api.getChildren(folderId));
+  const requestedChildIndex = targetChildren.filter((child) => child.id !== dragId).length;
+
+  removeDraggedItemFromDom(dragId);
+  state.suppressNextBookmarkRefresh = true;
+  const moved = await api.move(dragId, { parentId: folderId, index: requestedChildIndex });
+  updateLocalMove(dragId, sourceFolderId, folderId, moved.index ?? requestedChildIndex);
+  updateFolderCounter(folderId);
+  if (state.drag) state.drag.sourceFolderId = folderId;
+  return true;
+}
+
+async function moveDragRelativeToNode(targetNodeId, placeBefore, drag = state.drag) {
+  const dragId = drag?.id;
+  const sourceFolderId = drag?.sourceFolderId;
+  if (!dragId || !sourceFolderId || dragId === targetNodeId) return false;
+
+  const targetItem = listEl.querySelector(`.item[data-node-id="${CSS.escape(targetNodeId)}"]`);
+  const children = sortedByIndex(await api.getChildren(state.currentFolderId));
+  const targetIndex = children.findIndex((n) => n.id === targetNodeId);
+  if (targetIndex < 0) return false;
+
+  const requestedIndex = placeBefore ? targetIndex : targetIndex + 1;
+
+  if (targetItem) {
+    moveDraggedItemInDom(dragId, targetItem, placeBefore);
+  }
+  state.suppressNextBookmarkRefresh = true;
+  const moved = await api.move(dragId, { parentId: state.currentFolderId, index: requestedIndex });
+  updateLocalMove(dragId, sourceFolderId, state.currentFolderId, moved.index ?? requestedIndex);
+  if (state.drag) state.drag.sourceFolderId = state.currentFolderId;
+  return true;
+}
+
+async function moveDragToCurrentFolderEnd(drag = state.drag) {
+  const dragId = drag?.id;
+  const sourceFolderId = drag?.sourceFolderId;
+  if (!dragId || !sourceFolderId) return false;
+
+  const children = sortedByIndex(await api.getChildren(state.currentFolderId));
+  const requestedIndex = children.filter((child) => child.id !== dragId).length;
+
+  appendDraggedItemInDom(dragId);
+  state.suppressNextBookmarkRefresh = true;
+  const moved = await api.move(dragId, { parentId: state.currentFolderId, index: requestedIndex });
+  updateLocalMove(dragId, sourceFolderId, state.currentFolderId, moved.index ?? requestedIndex);
+  if (state.drag) state.drag.sourceFolderId = state.currentFolderId;
+  return true;
+}
+
+async function performRememberedDrop(drag = state.drag) {
+  const remembered = state.lastDropIntent;
+  if (!drag || !remembered || remembered.folderId !== state.currentFolderId) return false;
+  if (remembered.type === 'into') {
+    return moveDragIntoFolder(remembered.targetNodeId, drag);
+  }
+  if (remembered.type === 'reorder') {
+    return moveDragRelativeToNode(remembered.targetNodeId, remembered.placeBefore, drag);
+  }
+  return false;
+}
+
 function createItem(node, source = 'main') {
   const item = itemTemplate.content.firstElementChild.cloneNode(true);
   const virtualRoot = source === 'virtual-root';
@@ -692,6 +765,7 @@ function createItem(node, source = 'main') {
       ev.preventDefault();
       return;
     }
+    clearLastDropIntent();
     state.drag = { id: node.id, sourceFolderId: state.currentFolderId };
     item.classList.add('dragging');
     ev.dataTransfer.effectAllowed = 'move';
@@ -715,6 +789,7 @@ function createItem(node, source = 'main') {
   item.addEventListener('dragend', () => {
     cancelDragFolderEnter();
     state.drag = null;
+    clearLastDropIntent();
     item.classList.remove('dragging');
     clearDropMarkers();
   });
@@ -726,6 +801,7 @@ function createItem(node, source = 'main') {
     ev.stopPropagation();
     if (state.drag.id === nodeId) {
       cancelDragFolderEnter();
+      clearLastDropIntent();
       clearDropMarkers();
       return;
     }
@@ -734,8 +810,15 @@ function createItem(node, source = 'main') {
     const intent = getDropIntent(node, item, ev.clientY);
     if (intent.type === 'into') {
       scheduleDragFolderEnter(node.id);
+      state.lastDropIntent = { folderId: state.currentFolderId, type: 'into', targetNodeId: node.id };
     } else {
       cancelDragFolderEnter();
+      state.lastDropIntent = {
+        folderId: state.currentFolderId,
+        type: 'reorder',
+        targetNodeId: node.id,
+        placeBefore: intent.placeBefore,
+      };
     }
     if (intent.type === 'into') {
       item.classList.add('drop-into');
@@ -762,6 +845,7 @@ function createItem(node, source = 'main') {
     ev.preventDefault();
     ev.stopPropagation();
     cancelDragFolderEnter();
+    clearLastDropIntent();
     clearDropMarkers();
 
     const nodeId = node?.id;
@@ -769,32 +853,13 @@ function createItem(node, source = 'main') {
     const sourceFolderId = state.drag?.sourceFolderId;
     if (!nodeId || !dragId || dragId === nodeId) return;
 
-    const children = sortedByIndex(await api.getChildren(state.currentFolderId));
-    const targetIndex = children.findIndex((n) => n.id === nodeId);
-    if (targetIndex < 0) return;
-
     const intent = getDropIntent(node, item, ev.clientY);
     if (intent.type === 'into') {
-      const targetChildren = sortedByIndex(await api.getChildren(node.id));
-      const requestedChildIndex = targetChildren.filter((child) => child.id !== dragId).length;
-
-      removeDraggedItemFromDom(dragId);
-      state.suppressNextBookmarkRefresh = true;
-      const moved = await api.move(dragId, { parentId: node.id, index: requestedChildIndex });
-      updateLocalMove(dragId, sourceFolderId, node.id, moved.index ?? requestedChildIndex);
-      updateFolderCounter(node.id);
-      if (state.drag) state.drag.sourceFolderId = node.id;
+      await moveDragIntoFolder(node.id, { id: dragId, sourceFolderId });
       return;
     }
 
-    const placeBefore = intent.placeBefore;
-    const requestedIndex = placeBefore ? targetIndex : targetIndex + 1;
-
-    moveDraggedItemInDom(dragId, item, placeBefore);
-    state.suppressNextBookmarkRefresh = true;
-    const moved = await api.move(dragId, { parentId: state.currentFolderId, index: requestedIndex });
-    updateLocalMove(dragId, sourceFolderId, state.currentFolderId, moved.index ?? requestedIndex);
-    if (state.drag) state.drag.sourceFolderId = state.currentFolderId;
+    await moveDragRelativeToNode(nodeId, intent.placeBefore, { id: dragId, sourceFolderId });
   });
 
   return item;
@@ -1076,26 +1141,41 @@ listEl.addEventListener('dragover', (ev) => {
   if (!state.drag || isVirtualFolderId(state.currentFolderId)) return;
   ev.preventDefault();
   cancelDragFolderEnter();
-  clearDropMarkers();
   ev.dataTransfer.dropEffect = 'move';
 });
 
 listEl.addEventListener('drop', async (ev) => {
   if (!state.drag || isVirtualFolderId(state.currentFolderId)) return;
   ev.preventDefault();
+  ev.stopPropagation();
+  const dragSnapshot = { ...state.drag };
   cancelDragFolderEnter();
   clearDropMarkers();
 
-  const dragId = state.drag.id;
-  const sourceFolderId = state.drag.sourceFolderId;
-  const children = sortedByIndex(await api.getChildren(state.currentFolderId));
-  const requestedIndex = children.filter((child) => child.id !== dragId).length;
+  if (await performRememberedDrop(dragSnapshot)) {
+    clearLastDropIntent();
+    return;
+  }
 
-  appendDraggedItemInDom(dragId);
-  state.suppressNextBookmarkRefresh = true;
-  const moved = await api.move(dragId, { parentId: state.currentFolderId, index: requestedIndex });
-  updateLocalMove(dragId, sourceFolderId, state.currentFolderId, moved.index ?? requestedIndex);
-  if (state.drag) state.drag.sourceFolderId = state.currentFolderId;
+  await moveDragToCurrentFolderEnd(dragSnapshot);
+  clearLastDropIntent();
+});
+
+document.addEventListener('dragover', (ev) => {
+  if (!state.drag || isVirtualFolderId(state.currentFolderId)) return;
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'move';
+});
+
+document.addEventListener('drop', async (ev) => {
+  if (!state.drag || isVirtualFolderId(state.currentFolderId)) return;
+  ev.preventDefault();
+  const dragSnapshot = { ...state.drag };
+  cancelDragFolderEnter();
+  clearDropMarkers();
+  if (await performRememberedDrop(dragSnapshot)) {
+    clearLastDropIntent();
+  }
 });
 
 document.addEventListener('click', () => {

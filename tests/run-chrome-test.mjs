@@ -1391,7 +1391,7 @@ async function main() {
         observer.observe(list, { childList: true });
 
         const targetRect = targetRow.getBoundingClientRect();
-        targetRow.dispatchEvent(new DragEvent('drop', {
+        list.dispatchEvent(new DragEvent('drop', {
           bubbles: true,
           cancelable: true,
           clientX: targetRect.left + 24,
