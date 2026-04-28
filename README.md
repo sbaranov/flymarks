@@ -44,8 +44,7 @@ From project root:
 
 ```bash
 cd /path/to/bookmarks
-HEADLESS=0 \
-node --experimental-websocket tests/run-chrome-test.mjs
+npm test
 ```
 
 Expected success output:
@@ -96,8 +95,7 @@ Optional:
    ```
 3. Run the automated browser test:
    ```bash
-   HEADLESS=0 \
-   node --experimental-websocket tests/run-chrome-test.mjs
+   npm test
    ```
 4. Repeat.
 
@@ -158,7 +156,7 @@ This section documents the key constraints and decisions behind the E2E browser 
 
 - The test runner requires WebSocket support for CDP.
 - Use Node with:
-  - `node --experimental-websocket tests/run-chrome-test.mjs`
+  - `npm test`
 
 ### 5. Extension ID discovery strategy
 

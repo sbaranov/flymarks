@@ -46,7 +46,7 @@ function getFreePort() {
 class Cdp {
   constructor(wsUrl) {
     if (typeof WebSocket === 'undefined') {
-      throw new Error('WebSocket is unavailable. Run with: node --experimental-websocket tests/run-chrome-test.mjs');
+      throw new Error('WebSocket is unavailable. Run with: npm test');
     }
     this.ws = new WebSocket(wsUrl);
     this.seq = 0;
