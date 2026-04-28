@@ -350,7 +350,8 @@ function createItem(node, source = 'main') {
 
   item.addEventListener('dragover', (ev) => {
     if (virtualRoot) return;
-    if (!state.drag || state.drag.id === node.id) return;
+    const nodeId = node?.id;
+    if (!nodeId || !state.drag || state.drag.id === nodeId) return;
     ev.preventDefault();
     const rect = item.getBoundingClientRect();
     const above = ev.clientY - rect.top < rect.height / 2;
@@ -368,17 +369,19 @@ function createItem(node, source = 'main') {
     ev.preventDefault();
     item.classList.remove('drop-before', 'drop-after');
 
-    if (!state.drag || state.drag.id === node.id) return;
+    const nodeId = node?.id;
+    const dragId = state.drag?.id;
+    if (!nodeId || !dragId || dragId === nodeId) return;
 
     const children = sortedByIndex(await api.getChildren(state.currentFolderId));
-    const targetIndex = children.findIndex((n) => n.id === node.id);
+    const targetIndex = children.findIndex((n) => n.id === nodeId);
     if (targetIndex < 0) return;
 
     const rect = item.getBoundingClientRect();
     const placeBefore = ev.clientY - rect.top < rect.height / 2;
     const nextIndex = placeBefore ? targetIndex : targetIndex + 1;
 
-    await api.move(state.drag.id, { parentId: state.currentFolderId, index: nextIndex });
+    await api.move(dragId, { parentId: state.currentFolderId, index: nextIndex });
     await refreshCurrent();
   });
 
@@ -412,6 +415,7 @@ function createContextAction(label, action, opts = {}) {
   item.addEventListener('click', async (ev) => {
     ev.stopPropagation();
     if (opts.disabled) return;
+    if (opts.confirmMessage && !confirm(opts.confirmMessage())) return;
     state.contextNodeId = null;
     try {
       await action();
@@ -547,7 +551,15 @@ function openContextMenu(_x, _y, node) {
     } else {
       await api.remove(node.id);
     }
-  }, { danger: true }));
+  }, {
+    danger: true,
+    confirmMessage: () => {
+      const title = node.title || node.url || 'this item';
+      return folder
+        ? `Delete folder "${title}" and all of its contents?`
+        : `Delete bookmark "${title}"?`;
+    },
+  }));
 }
 
 async function cloneNode(sourceNode, parentId) {

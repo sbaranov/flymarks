@@ -473,24 +473,75 @@ async function main() {
         if (!reusedPopup || !deleteBtn) {
           return { removed: false, reusedPopup, hasDelete: Boolean(deleteBtn), actionLabels };
         }
+
+        const originalConfirm = window.confirm;
+        const confirmMessages = [];
+        window.confirm = (message) => {
+          confirmMessages.push(message);
+          return false;
+        };
+        deleteBtn.click();
+        await new Promise((r) => setTimeout(r, 80));
+        const exactTitleExists = async () => (
+          await chrome.bookmarks.search(targetText)
+        ).some((node) => node.title === targetText);
+        const existsAfterCancel = await exactTitleExists();
+        const contextStillOpen = window.__popupTest.getState().contextOpen;
+        if (!existsAfterCancel || !contextStillOpen) {
+          window.confirm = originalConfirm;
+          return {
+            removed: false,
+            reusedPopup,
+            hasDelete: true,
+            actionLabels,
+            confirmMessages,
+            existsAfterCancel,
+            contextStillOpen,
+          };
+        }
+
+        window.confirm = (message) => {
+          confirmMessages.push(message);
+          return true;
+        };
         deleteBtn.click();
         for (let i = 0; i < 20; i++) {
-          const stillExists = (await chrome.bookmarks.search(targetText)).length > 0;
-          if (!stillExists) return { removed: true, reusedPopup, hasDelete: true, actionLabels };
+          const stillExists = await exactTitleExists();
+          if (!stillExists) {
+            window.confirm = originalConfirm;
+            return {
+              removed: true,
+              reusedPopup,
+              hasDelete: true,
+              actionLabels,
+              confirmMessages,
+              existsAfterCancel,
+              contextStillOpen,
+            };
+          }
           await new Promise((r) => setTimeout(r, 80));
         }
+        window.confirm = originalConfirm;
         const matches = await chrome.bookmarks.search(targetText);
         return {
           removed: false,
           reusedPopup,
           hasDelete: true,
           actionLabels,
+          confirmMessages,
+          existsAfterCancel,
+          contextStillOpen,
           matches: matches.map((node) => ({ id: node.id, title: node.title, url: node.url || null })),
         };
       })();
       `,
     );
     must(deletedViaContext.removed, `Context menu Delete did not remove bookmark: ${JSON.stringify(deletedViaContext)}`);
+    must(
+      deletedViaContext.confirmMessages.length === 2 &&
+        deletedViaContext.confirmMessages.every((message) => message.includes(fixture.names.b)),
+      `Context menu Delete did not confirm with item name: ${JSON.stringify(deletedViaContext)}`,
+    );
 
     const reordered = await cdp.eval(
       sessionId,
