@@ -124,7 +124,7 @@ function loadSnapshotSync() {
   }
 }
 
-function getVirtualRootFolders() {
+async function getVirtualRootFolders() {
   const rootFolders = sortedByIndex(state.topLevelFolders).filter((node) => (
     node.id !== state.rootFolderId &&
     (
@@ -137,7 +137,13 @@ function getVirtualRootFolders() {
       ? [{ id: VIRTUAL_APPS_ID, title: 'Apps Shortcut', index: -2, virtualType: 'apps' }]
       : []),
     ...(state.settings.showTabGroups
-      ? [{ id: VIRTUAL_TAB_GROUPS_ID, title: 'Tab Groups', index: -1, virtualType: 'tab-groups-root' }]
+      ? [{
+        id: VIRTUAL_TAB_GROUPS_ID,
+        title: 'Tab Groups',
+        index: -1,
+        virtualType: 'tab-groups-root',
+        children: await api.queryTabGroups({}),
+      }]
       : []),
     ...rootFolders,
   ];
@@ -211,7 +217,7 @@ async function enterFolder(folderId, replacePath = false) {
   }
 
   state.currentFolderId = folder.id;
-  renderList(folder.children || []);
+  await renderList(folder.children || []);
 }
 
 async function enterVirtualFolder(folderId, replacePath = false) {
@@ -233,7 +239,7 @@ async function enterVirtualFolder(folderId, replacePath = false) {
   }
 
   state.currentFolderId = folder.id;
-  renderList(folder.children || []);
+  await renderList(folder.children || []);
 }
 
 async function getVirtualFolder(folderId) {
@@ -346,12 +352,12 @@ function createContextBackItem(node) {
   return item;
 }
 
-function renderList(children, opts = {}) {
+async function renderList(children, opts = {}) {
   listEl.innerHTML = '';
 
   const ordered = sortedByIndex(children);
   const showRootVirtuals = opts.includeRootVirtuals !== false && isRootView();
-  const virtualFolders = showRootVirtuals ? getVirtualRootFolders() : [];
+  const virtualFolders = showRootVirtuals ? await getVirtualRootFolders() : [];
 
   if (!isRootView()) {
     listEl.append(createBackItem(), createSeparator());
@@ -532,7 +538,7 @@ function createItem(node, source = 'main') {
 function hideContextMenu() {
   if (!state.contextNodeId) return;
   state.contextNodeId = null;
-  renderCurrentFolderFromState();
+      renderCurrentFolderFromState();
 }
 
 function separator() {
@@ -773,11 +779,11 @@ async function refreshCurrent() {
 function renderCurrentFolderFromState() {
   if (isVirtualFolderId(state.currentFolderId)) {
     const folder = state.nodesById.get(state.currentFolderId);
-    renderList(folder?.children || []);
+    renderList(folder?.children || []).catch(() => {});
     return;
   }
   const folder = state.nodesById.get(state.currentFolderId);
-  renderList(folder?.children || []);
+  renderList(folder?.children || []).catch(() => {});
 }
 
 async function goBack() {
@@ -831,8 +837,8 @@ window.__popupTest = {
     contextOpen: Boolean(state.contextNodeId),
     settings: { ...state.settings },
   }),
-  renderNodes: (nodes) => {
-    renderList(nodes);
+  renderNodes: async (nodes) => {
+    await renderList(nodes);
     return true;
   },
   reorderByIds: async (sourceId, targetId, before = true) => {

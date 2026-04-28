@@ -449,6 +449,7 @@ async function main() {
         const tabGroupsRow = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')].find((row) =>
           row.querySelector('.item-title')?.textContent.trim() === 'Tab Groups'
         );
+        const rootCounter = tabGroupsRow?.querySelector('.item-meta')?.textContent.trim();
         tabGroupsRow?.click();
         for (let i = 0; i < 20; i++) {
           const found = [...document.querySelectorAll('#bookmark-list > .item .item-title')]
@@ -495,6 +496,7 @@ async function main() {
 
         return {
           groupId,
+          rootCounter,
           groupVisible,
           backLabel,
           tabVisible,
@@ -506,6 +508,7 @@ async function main() {
     );
     must(
       tabGroupsVirtualFolder.groupVisible &&
+        Number(tabGroupsVirtualFolder.rootCounter) >= 1 &&
         tabGroupsVirtualFolder.backLabel === 'Codex Test Group' &&
         tabGroupsVirtualFolder.tabVisible &&
         tabGroupsVirtualFolder.calls.update?.payload?.active === true &&
@@ -518,7 +521,7 @@ async function main() {
       sessionId,
       `
       (async () => {
-        window.__popupTest.renderNodes([
+        await window.__popupTest.renderNodes([
           null,
           { id: 'null-url', title: 'Null URL', url: null, index: 0 },
           { id: 'empty-url', title: 'Empty URL', url: '', index: 1 },
@@ -546,13 +549,13 @@ async function main() {
       (async () => {
         const width = () => Math.round(document.documentElement.getBoundingClientRect().width);
 
-        window.__popupTest.renderNodes([
+        await window.__popupTest.renderNodes([
           { id: 'short-url', title: 'Short', url: 'https://example.com/short', index: 0 },
         ]);
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
         const shortWidth = width();
 
-        window.__popupTest.renderNodes([
+        await window.__popupTest.renderNodes([
           {
             id: 'long-url',
             title: 'CodexExtTest Extremely long bookmark title that should widen the popup until the configured maximum width',
