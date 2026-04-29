@@ -8,6 +8,7 @@ const repoDir = path.resolve(process.cwd());
 const browserBin = process.env.BROWSER_BIN ||
   path.join(os.homedir(), 'Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing');
 const popupPath = path.join(repoDir, 'example.png');
+const iconPath = path.join(repoDir, 'icons/icon32.png');
 const outputPath = path.join(repoDir, 'listing-screenshot.png');
 const htmlPath = path.join(os.tmpdir(), 'bookmarks-menu-listing-screenshot.html');
 const viewport = { width: 640, height: 400 };
@@ -84,7 +85,7 @@ class Cdp {
   }
 }
 
-function renderHtml(popupDataUrl) {
+function renderHtml(popupDataUrl, iconDataUrl) {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -162,8 +163,13 @@ function renderHtml(popupDataUrl) {
 
     .toolbar-icon.active {
       border-radius: 5px;
-      color: #e8eaed;
       background: #3a3d41;
+    }
+
+    .extension-icon {
+      width: 16px;
+      height: 16px;
+      display: block;
     }
 
     .page {
@@ -246,7 +252,7 @@ function renderHtml(popupDataUrl) {
         <span class="dot"></span>
         <div class="address">example.com</div>
         <div class="toolbar-icon">★</div>
-        <div class="toolbar-icon active">▦</div>
+        <div class="toolbar-icon active"><img class="extension-icon" src="${iconDataUrl}" alt=""></div>
       </div>
       <div class="page">
         <div class="hero">
@@ -277,9 +283,13 @@ async function main() {
   if (!fs.existsSync(popupPath)) {
     throw new Error('example.png was not found. Run npm run example first.');
   }
+  if (!fs.existsSync(iconPath)) {
+    throw new Error(`Extension icon was not found at ${iconPath}`);
+  }
 
   const popupDataUrl = `data:image/png;base64,${fs.readFileSync(popupPath).toString('base64')}`;
-  fs.writeFileSync(htmlPath, renderHtml(popupDataUrl));
+  const iconDataUrl = `data:image/png;base64,${fs.readFileSync(iconPath).toString('base64')}`;
+  fs.writeFileSync(htmlPath, renderHtml(popupDataUrl, iconDataUrl));
 
   const debugPort = await getFreePort();
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bookmarks-menu-listing-'));
