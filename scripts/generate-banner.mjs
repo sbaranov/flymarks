@@ -223,8 +223,8 @@ function renderHtml(popupDataUrl, iconDataUrl) {
 
     .popup {
       position: absolute;
-      top: 18px;
-      right: 50px;
+      top: 16px;
+      right: 42px;
       width: 261px;
       height: 362px;
       filter: drop-shadow(0 18px 26px rgba(0, 0, 0, 0.42));
@@ -232,8 +232,8 @@ function renderHtml(popupDataUrl, iconDataUrl) {
 
     .pin {
       position: absolute;
-      top: 35px;
-      right: 152px;
+      top: 33px;
+      right: 142px;
       width: 12px;
       height: 12px;
       transform: rotate(45deg);
