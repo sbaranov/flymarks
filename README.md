@@ -4,7 +4,7 @@ Flymarks is a lightweight Chrome extension that shows bookmarks as a clean and c
 
 It is open source so you can verify that it does not send your bookmark data anywhere.
 
-![Flymarks popup preview](assets/preview.png)
+![Flymarks banner](assets/banner.png)
 
 ## Quick Start
 
