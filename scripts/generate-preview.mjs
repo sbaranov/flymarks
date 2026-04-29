@@ -74,7 +74,7 @@ async function waitForJson(url, timeoutMs = 15000) {
 class Cdp {
   constructor(wsUrl) {
     if (typeof WebSocket === 'undefined') {
-      throw new Error('WebSocket is unavailable. Run with: npm run example');
+      throw new Error('WebSocket is unavailable. Run with: npm run preview');
     }
     this.ws = new WebSocket(wsUrl);
     this.seq = 0;

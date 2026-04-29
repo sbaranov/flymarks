@@ -9,7 +9,7 @@ const browserBin = process.env.BROWSER_BIN ||
   path.join(os.homedir(), 'Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing');
 const popupPath = path.join(repoDir, 'assets/preview.png');
 const iconPath = path.join(repoDir, 'icons/icon32.png');
-const outputPath = path.join(repoDir, 'assets/listing-screenshot.png');
+const outputPath = path.join(repoDir, 'assets/banner.png');
 const htmlPath = path.join(os.tmpdir(), 'flymarks-listing-screenshot.html');
 const viewport = { width: 640, height: 400 };
 
@@ -46,7 +46,7 @@ async function waitForJson(url, timeoutMs = 15000) {
 class Cdp {
   constructor(wsUrl) {
     if (typeof WebSocket === 'undefined') {
-      throw new Error('WebSocket is unavailable. Run with: npm run listing');
+      throw new Error('WebSocket is unavailable. Run with: npm run banner');
     }
     this.ws = new WebSocket(wsUrl);
     this.seq = 0;
@@ -281,7 +281,7 @@ async function main() {
     throw new Error(`Chrome for Testing was not found at ${browserBin}`);
   }
   if (!fs.existsSync(popupPath)) {
-    throw new Error('assets/preview.png was not found. Run npm run example first.');
+    throw new Error('assets/preview.png was not found. Run npm run preview first.');
   }
   if (!fs.existsSync(iconPath)) {
     throw new Error(`Extension icon was not found at ${iconPath}`);
