@@ -48,44 +48,34 @@ npm run browser
 
 This section documents the key constraints and decisions behind the E2E browser test environment.
 
-### 1. Sandbox and process constraints
+### 1. Stable Google Chrome is not suitable for unpacked-extension automation here
 
-- Running real browser automation from the default sandbox was unreliable (browser process could abort or fail to expose DevTools).
-- E2E browser runs should be executed with elevated permissions in this environment.
-
-### 2. Stable Google Chrome is not suitable for unpacked-extension automation here
-
-- In some setups, stable Google Chrome logs:
+- Stable Google Chrome logs:
   - `--load-extension is not allowed in Google Chrome, ignoring.`
   - `--disable-extensions-except is not allowed in Google Chrome, ignoring.`
 - Impact: the extension is not loaded, so popup/extension targets are unavailable to CDP.
 - Mitigation: use **Chrome for Testing** for E2E runs.
 
-### 3. Keychain prompt behavior
+### 2. Keychain prompt behavior
 
-- macOS may prompt for Keychain access when launching browser automation.
-- If access is denied, browser startup can fail.
-- Mitigation: always launch automated runs with `--use-mock-keychain`.
+- macOS prompts for Keychain access when launching browser automation.
+- Impact: if access is denied, browser startup can fail.
+- Mitigation: always launch Google Chrome for Testing with `--use-mock-keychain`.
 
-### 4. CDP transport requirement in Node
+### 3. CDP transport requirement in Node
 
 - The test runner requires WebSocket support for CDP.
 - Mitigation: use Node with `--experimental-websocket`.
 
-### 5. Extension ID discovery strategy
+### 4. Extension ID discovery strategy
 
 - Relying on a single discovery mechanism can be flaky.
 - Implemented strategy:
   1. Try CDP target discovery (`service_worker` URL ending in `/background.js`).
   2. Fallback to profile-based extension metadata lookup.
 
-### 6. Flake-resistance patterns in tests
+### 5. Flake-resistance patterns in tests
 
 - Use polling for async bookmark operations (e.g., delete verification) instead of fixed short sleeps.
 - Use a dynamically allocated free remote-debugging port per run to avoid collisions.
 - Synthetic drag-and-drop via CDP can be unreliable; deterministic test hooks are used for reorder verification.
-
-### 7. Browser installation model
-
-- Chrome for Testing should be installed at `$HOME/Applications/Google Chrome for Testing.app` so multiple workspaces can reuse it and it survives reboots.
-- The repository intentionally does not commit browser binaries.
