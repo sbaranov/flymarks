@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 
 const repoDir = path.resolve(process.cwd());
 const distDir = path.join(repoDir, 'dist');
-const zipPath = path.join(distDir, 'bookmarks-menu.zip');
+const zipPath = path.join(distDir, 'flymarks.zip');
 const files = [
   'manifest.json',
   'background.js',

@@ -1,10 +1,10 @@
-# Bookmarks Menu
+# Flymarks
 
-Bookmarks Menu is a simple Chrome extension that shows bookmarks as a clean and compact dropdown menu, with folder navigation, context actions, and bookmark operations.
+Flymarks is a simple Chrome extension that shows bookmarks as a clean and compact dropdown menu, with folder navigation, context actions, and bookmark operations.
 
 It is open source so you can verify that it does not send your bookmark data anywhere.
 
-![Bookmarks Menu popup example](example.png)
+![Flymarks popup example](example.png)
 
 ## Quick Start
 
@@ -14,9 +14,9 @@ Install the development extension into your main Google Chrome profile:
 2. Enable Developer mode.
 3. Click Load unpacked.
 4. Select this repository folder.
-5. Open the toolbar action named `Bookmarks Menu`.
+5. Open the toolbar action named `Flymarks`.
 
-After code changes, return to `chrome://extensions/` and click Reload on the `Bookmarks Menu` card. If the card shows an Errors button, inspect whether the errors are current or stale, clear stale errors, and reload the extension to verify the button stays gone.
+After code changes, return to `chrome://extensions/` and click Reload on the `Flymarks` card. If the card shows an Errors button, inspect whether the errors are current or stale, clear stale errors, and reload the extension to verify the button stays gone.
 
 ## Development
 
@@ -56,7 +56,7 @@ Create a Chrome Web Store upload package:
 npm run package
 ```
 
-This writes `dist/bookmarks-menu.zip` with `manifest.json` at the archive root.
+This writes `dist/flymarks.zip` with `manifest.json` at the archive root.
 
 ## Browser Testing Architecture Notes
 

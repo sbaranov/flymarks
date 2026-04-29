@@ -1,6 +1,6 @@
-# Bookmarks Menu Privacy Policy
+# Flymarks Privacy Policy
 
-Bookmarks Menu does not collect, sell, share, or transmit personal data.
+Flymarks does not collect, sell, share, or transmit personal data.
 
 The extension uses Chrome extension permissions only to provide its bookmark menu features:
 
@@ -9,6 +9,6 @@ The extension uses Chrome extension permissions only to provide its bookmark men
 - Storage is used only to save extension preferences.
 - Favicons are used only to display bookmark icons.
 
-Bookmarks Menu does not send bookmark data, tab data, browsing data, or extension preferences to the developer or any third party.
+Flymarks does not send bookmark data, tab data, browsing data, or extension preferences to the developer or any third party.
 
 Last updated: April 29, 2026

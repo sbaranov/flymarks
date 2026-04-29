@@ -1,14 +1,14 @@
 {
   "manifest_version": 3,
-  "name": "Bookmarks Menu",
+  "name": "Flymarks",
   "version": "1.0.0",
-  "description": "Chrome-style bookmarks menu with context actions and drag reorder.",
+  "description": "Fast Chrome bookmarks popup with context actions and drag reorder.",
   "permissions": ["bookmarks", "tabs", "tabGroups", "storage", "favicon"],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Bookmarks Menu",
+    "default_title": "Flymarks",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",

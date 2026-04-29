@@ -1,5 +1,5 @@
 {
-  "name": "bookmarks",
+  "name": "flymarks",
   "version": "1.0.0",
   "main": "background.js",
   "directories": {

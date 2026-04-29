@@ -10,7 +10,7 @@ const browserBin = process.env.BROWSER_BIN ||
 const popupPath = path.join(repoDir, 'example.png');
 const iconPath = path.join(repoDir, 'icons/icon32.png');
 const outputPath = path.join(repoDir, 'listing-screenshot.png');
-const htmlPath = path.join(os.tmpdir(), 'bookmarks-menu-listing-screenshot.html');
+const htmlPath = path.join(os.tmpdir(), 'flymarks-listing-screenshot.html');
 const viewport = { width: 640, height: 400 };
 
 function sleep(ms) {
@@ -90,7 +90,7 @@ function renderHtml(popupDataUrl, iconDataUrl) {
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Bookmarks Menu Listing Screenshot</title>
+  <title>Flymarks Listing Screenshot</title>
   <style>
     * { box-sizing: border-box; }
 
@@ -245,7 +245,7 @@ function renderHtml(popupDataUrl, iconDataUrl) {
 </head>
 <body>
   <main class="stage">
-    <section class="browser" aria-label="Bookmarks Menu in Chrome">
+    <section class="browser" aria-label="Flymarks in Chrome">
       <div class="toolbar">
         <span class="dot"></span>
         <span class="dot"></span>
@@ -256,7 +256,7 @@ function renderHtml(popupDataUrl, iconDataUrl) {
       </div>
       <div class="page">
         <div class="hero">
-          <h1>Bookmarks Menu</h1>
+          <h1>Flymarks</h1>
           <p>A clean, compact dropdown for your Chrome bookmarks.</p>
           <div class="bar long"></div>
           <div class="bar medium"></div>
@@ -292,7 +292,7 @@ async function main() {
   fs.writeFileSync(htmlPath, renderHtml(popupDataUrl, iconDataUrl));
 
   const debugPort = await getFreePort();
-  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bookmarks-menu-listing-'));
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'flymarks-listing-'));
   const chrome = spawn(
     browserBin,
     [

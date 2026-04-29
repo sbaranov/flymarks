@@ -8,7 +8,7 @@ const repoDir = path.resolve(process.cwd());
 const browserBin = process.env.BROWSER_BIN ||
   path.join(os.homedir(), 'Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing');
 const outputPath = path.join(repoDir, 'example.png');
-const htmlPath = path.join(os.tmpdir(), 'bookmarks-menu-popup-example.html');
+const htmlPath = path.join(os.tmpdir(), 'flymarks-popup-example.html');
 const viewport = { width: 522, height: 724 };
 const scale = 0.5;
 const capture = {
@@ -139,7 +139,7 @@ function renderHtml() {
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Bookmarks Menu Example</title>
+  <title>Flymarks Example</title>
   <style>
     :root {
       color-scheme: dark;
@@ -285,7 +285,7 @@ function renderHtml() {
   </style>
 </head>
 <body>
-  <main class="popup" aria-label="Bookmarks Menu">
+  <main class="popup" aria-label="Flymarks">
     ${rows.map((row) => row.sep ? '<div class="separator"></div>' : `
       <div class="item ${row.type}">
         <span class="icon">${iconMarkup(row)}</span>
@@ -307,7 +307,7 @@ async function main() {
   fs.writeFileSync(htmlPath, renderHtml());
 
   const debugPort = await getFreePort();
-  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bookmarks-menu-shot-'));
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'flymarks-shot-'));
   const chrome = spawn(
     browserBin,
     [
