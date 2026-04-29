@@ -9,6 +9,12 @@ const browserBin = process.env.BROWSER_BIN ||
   path.join(os.homedir(), 'Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing');
 const outputPath = path.join(repoDir, 'example.png');
 const htmlPath = path.join(os.tmpdir(), 'bookmarks-menu-popup-example.html');
+const viewport = { width: 522, height: 724 };
+const scale = 0.5;
+const capture = {
+  width: Math.round(viewport.width * scale),
+  height: Math.round(viewport.height * scale),
+};
 
 const rows = [
   { type: 'apps', title: 'Apps' },
@@ -141,7 +147,7 @@ function renderHtml() {
       --text: #e8eaed;
       --muted: #9aa0a6;
       --separator: rgba(232, 234, 237, 0.16);
-      --font: 26px/1.25 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font: 13px/1.25 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
     * { box-sizing: border-box; }
@@ -149,8 +155,8 @@ function renderHtml() {
     html,
     body {
       margin: 0;
-      width: 522px;
-      min-height: 724px;
+      width: ${capture.width}px;
+      min-height: ${capture.height}px;
       overflow: hidden;
       background: transparent;
       font: var(--font);
@@ -158,27 +164,27 @@ function renderHtml() {
     }
 
     .popup {
-      width: 522px;
-      min-height: 724px;
-      padding: 8px;
+      width: ${capture.width}px;
+      min-height: ${capture.height}px;
+      padding: 4px;
       background: var(--surface);
       border: 1px solid rgba(255,255,255,0.14);
     }
 
     .item {
-      min-height: 56px;
+      min-height: 28px;
       display: flex;
       align-items: center;
-      gap: 16px;
-      padding: 8px 24px;
-      border-radius: 8px;
+      gap: 8px;
+      padding: 4px 12px;
+      border-radius: 4px;
       white-space: nowrap;
     }
 
     .icon {
-      width: 32px;
-      height: 32px;
-      flex: 0 0 32px;
+      width: 16px;
+      height: 16px;
+      flex: 0 0 16px;
       position: relative;
       display: inline-flex;
       align-items: center;
@@ -195,86 +201,86 @@ function renderHtml() {
 
     .count {
       color: var(--muted);
-      font-size: 23px;
-      padding-left: 16px;
+      font-size: 11px;
+      padding-left: 8px;
     }
 
     .separator {
-      height: 2px;
-      margin: 8px 20px;
+      height: 1px;
+      margin: 4px 10px;
       background: var(--separator);
     }
 
     .favicon-frame {
-      width: 32px;
-      height: 32px;
+      width: 16px;
+      height: 16px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
     }
 
     .favicon-frame.favicon-tile {
-      border-radius: 6px;
+      border-radius: 3px;
       background: #fff;
     }
 
     .favicon {
-      width: 32px;
-      height: 32px;
+      width: 16px;
+      height: 16px;
       display: block;
       object-fit: contain;
     }
 
     .favicon-tile .favicon {
-      width: 24px;
-      height: 24px;
+      width: 12px;
+      height: 12px;
     }
 
     .apps .glyph {
-      width: 6px;
-      height: 6px;
-      border-radius: 2px;
+      width: 3px;
+      height: 3px;
+      border-radius: 1px;
       background: currentColor;
       box-shadow:
-        -10px -10px 0 currentColor,
-        0 -10px 0 currentColor,
-        10px -10px 0 currentColor,
-        -10px 0 0 currentColor,
-        10px 0 0 currentColor,
-        -10px 10px 0 currentColor,
-        0 10px 0 currentColor,
-        10px 10px 0 currentColor;
+        -5px -5px 0 currentColor,
+        0 -5px 0 currentColor,
+        5px -5px 0 currentColor,
+        -5px 0 0 currentColor,
+        5px 0 0 currentColor,
+        -5px 5px 0 currentColor,
+        0 5px 0 currentColor,
+        5px 5px 0 currentColor;
     }
 
     .tab-groups .glyph {
-      width: 28px;
-      height: 28px;
+      width: 14px;
+      height: 14px;
       background: currentColor;
-      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'%3E%3Crect x='2.2' y='2.2' width='4.8' height='4.8' rx='0.7'/%3E%3Crect x='9' y='2.2' width='4.8' height='4.8' rx='0.7'/%3E%3Crect x='2.2' y='9' width='4.8' height='4.8' rx='0.7'/%3E%3Crect x='9' y='9' width='4.8' height='4.8' rx='0.7'/%3E%3C/g%3E%3C/svg%3E") center / 32px 32px no-repeat;
-      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'%3E%3Crect x='2.2' y='2.2' width='4.8' height='4.8' rx='0.7'/%3E%3Crect x='9' y='2.2' width='4.8' height='4.8' rx='0.7'/%3E%3Crect x='2.2' y='9' width='4.8' height='4.8' rx='0.7'/%3E%3Crect x='9' y='9' width='4.8' height='4.8' rx='0.7'/%3E%3C/g%3E%3C/svg%3E") center / 32px 32px no-repeat;
+      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'%3E%3Crect x='2.2' y='2.2' width='4.8' height='4.8' rx='0.7'/%3E%3Crect x='9' y='2.2' width='4.8' height='4.8' rx='0.7'/%3E%3Crect x='2.2' y='9' width='4.8' height='4.8' rx='0.7'/%3E%3Crect x='9' y='9' width='4.8' height='4.8' rx='0.7'/%3E%3C/g%3E%3C/svg%3E") center / 16px 16px no-repeat;
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'%3E%3Crect x='2.2' y='2.2' width='4.8' height='4.8' rx='0.7'/%3E%3Crect x='9' y='2.2' width='4.8' height='4.8' rx='0.7'/%3E%3Crect x='2.2' y='9' width='4.8' height='4.8' rx='0.7'/%3E%3Crect x='9' y='9' width='4.8' height='4.8' rx='0.7'/%3E%3C/g%3E%3C/svg%3E") center / 16px 16px no-repeat;
     }
 
     .other .glyph,
     .mobile .glyph,
     .folder .glyph {
-      width: 32px;
-      height: 32px;
+      width: 16px;
+      height: 16px;
       background: currentColor;
     }
 
     .other .glyph {
-      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'%3E%3Cpath d='M2.5 5.4h11v7.1c0 .6-.4 1-1 1h-9c-.6 0-1-.4-1-1V5.4Z'/%3E%3Cpath d='M4.2 5.4V3.5c0-.6.4-1 1-1h5.6c.6 0 1 .4 1 1v1.9'/%3E%3Cpath d='M6 7.8h4'/%3E%3C/g%3E%3C/svg%3E") center / 32px 32px no-repeat;
-      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'%3E%3Cpath d='M2.5 5.4h11v7.1c0 .6-.4 1-1 1h-9c-.6 0-1-.4-1-1V5.4Z'/%3E%3Cpath d='M4.2 5.4V3.5c0-.6.4-1 1-1h5.6c.6 0 1 .4 1 1v1.9'/%3E%3Cpath d='M6 7.8h4'/%3E%3C/g%3E%3C/svg%3E") center / 32px 32px no-repeat;
+      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'%3E%3Cpath d='M2.5 5.4h11v7.1c0 .6-.4 1-1 1h-9c-.6 0-1-.4-1-1V5.4Z'/%3E%3Cpath d='M4.2 5.4V3.5c0-.6.4-1 1-1h5.6c.6 0 1 .4 1 1v1.9'/%3E%3Cpath d='M6 7.8h4'/%3E%3C/g%3E%3C/svg%3E") center / 16px 16px no-repeat;
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'%3E%3Cpath d='M2.5 5.4h11v7.1c0 .6-.4 1-1 1h-9c-.6 0-1-.4-1-1V5.4Z'/%3E%3Cpath d='M4.2 5.4V3.5c0-.6.4-1 1-1h5.6c.6 0 1 .4 1 1v1.9'/%3E%3Cpath d='M6 7.8h4'/%3E%3C/g%3E%3C/svg%3E") center / 16px 16px no-repeat;
     }
 
     .mobile .glyph {
-      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='1.35' stroke-linejoin='round'%3E%3Crect x='4.4' y='1.8' width='7.2' height='12.4' rx='1.2'/%3E%3Cpath d='M7 3.7h2'/%3E%3Cpath d='M7.4 12.1h1.2'/%3E%3C/g%3E%3C/svg%3E") center / 32px 32px no-repeat;
-      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='1.35' stroke-linejoin='round'%3E%3Crect x='4.4' y='1.8' width='7.2' height='12.4' rx='1.2'/%3E%3Cpath d='M7 3.7h2'/%3E%3Cpath d='M7.4 12.1h1.2'/%3E%3C/g%3E%3C/svg%3E") center / 32px 32px no-repeat;
+      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='1.35' stroke-linejoin='round'%3E%3Crect x='4.4' y='1.8' width='7.2' height='12.4' rx='1.2'/%3E%3Cpath d='M7 3.7h2'/%3E%3Cpath d='M7.4 12.1h1.2'/%3E%3C/g%3E%3C/svg%3E") center / 16px 16px no-repeat;
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='1.35' stroke-linejoin='round'%3E%3Crect x='4.4' y='1.8' width='7.2' height='12.4' rx='1.2'/%3E%3Cpath d='M7 3.7h2'/%3E%3Cpath d='M7.4 12.1h1.2'/%3E%3C/g%3E%3C/svg%3E") center / 16px 16px no-repeat;
     }
 
     .folder .glyph {
-      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.75 4.75c0-.69.56-1.25 1.25-1.25h3.05c.38 0 .74.17.98.46l.72.84H13c.69 0 1.25.56 1.25 1.25v6.2c0 .69-.56 1.25-1.25 1.25H3c-.69 0-1.25-.56-1.25-1.25v-7.5Z' fill='none' stroke='black' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") center / 36px 36px no-repeat;
-      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.75 4.75c0-.69.56-1.25 1.25-1.25h3.05c.38 0 .74.17.98.46l.72.84H13c.69 0 1.25.56 1.25 1.25v6.2c0 .69-.56 1.25-1.25 1.25H3c-.69 0-1.25-.56-1.25-1.25v-7.5Z' fill='none' stroke='black' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") center / 36px 36px no-repeat;
+      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.75 4.75c0-.69.56-1.25 1.25-1.25h3.05c.38 0 .74.17.98.46l.72.84H13c.69 0 1.25.56 1.25 1.25v6.2c0 .69-.56 1.25-1.25 1.25H3c-.69 0-1.25-.56-1.25-1.25v-7.5Z' fill='none' stroke='black' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") center / 18px 18px no-repeat;
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.75 4.75c0-.69.56-1.25 1.25-1.25h3.05c.38 0 .74.17.98.46l.72.84H13c.69 0 1.25.56 1.25 1.25v6.2c0 .69-.56 1.25-1.25 1.25H3c-.69 0-1.25-.56-1.25-1.25v-7.5Z' fill='none' stroke='black' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") center / 18px 18px no-repeat;
     }
   </style>
 </head>
@@ -327,8 +333,8 @@ async function main() {
     await cdp.send('Runtime.enable', {}, sessionId);
     await cdp.send('Page.enable', {}, sessionId);
     await cdp.send('Emulation.setDeviceMetricsOverride', {
-      width: 522,
-      height: 724,
+      width: capture.width,
+      height: capture.height,
       deviceScaleFactor: 1,
       mobile: false,
     }, sessionId);
