@@ -1,8 +1,10 @@
 # Bookmarks Menu
 
-Bookmarks Menu is a simple Chrome extension that shows Chrome bookmarks in a clean and compact way, with folder navigation, context actions, and bookmark operations.
+Bookmarks Menu is a simple Chrome extension that shows bookmarks as a clean and compact dropdown menu, with folder navigation, context actions, and bookmark operations.
 
 It is open source so you can verify that it does not send your bookmark data anywhere.
+
+![Bookmarks Menu popup example](example.png)
 
 ## Quick Start
 
