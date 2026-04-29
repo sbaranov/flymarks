@@ -50,9 +50,7 @@ This section documents the key constraints and decisions behind the E2E browser 
 
 ### 1. Stable Google Chrome is not suitable for unpacked-extension automation here
 
-- Stable Google Chrome logs:
-  - `--load-extension is not allowed in Google Chrome, ignoring.`
-  - `--disable-extensions-except is not allowed in Google Chrome, ignoring.`
+- Stable Google Chrome logs: `--load-extension is not allowed in Google Chrome, ignoring.`
 - Impact: the extension is not loaded, so popup/extension targets are unavailable to CDP.
 - Mitigation: use **Chrome for Testing** for E2E runs.
 
@@ -67,12 +65,10 @@ This section documents the key constraints and decisions behind the E2E browser 
 - The test runner requires WebSocket support for CDP.
 - Mitigation: use Node with `--experimental-websocket`.
 
-### 4. Extension ID discovery strategy
+### 4. Extension ID discovery
 
-- Relying on a single discovery mechanism can be flaky.
-- Implemented strategy:
-  1. Try CDP target discovery (`service_worker` URL ending in `/background.js`).
-  2. Fallback to profile-based extension metadata lookup.
+- The test runner first finds the extension ID through Chrome DevTools Protocol targets.
+- If the extension service worker is not visible yet, it falls back to the generated profile metadata.
 
 ### 5. Flake-resistance patterns in tests
 
