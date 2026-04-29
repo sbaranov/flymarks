@@ -61,35 +61,3 @@ npm run package
 ```
 
 This writes `dist/flymarks.zip` with `manifest.json` at the archive root.
-
-## Browser Testing Architecture Notes
-
-This section documents the key constraints and decisions behind the E2E browser test environment.
-
-### 1. Stable Google Chrome is not suitable for unpacked-extension automation here
-
-- Stable Google Chrome logs: `--load-extension is not allowed in Google Chrome, ignoring.`
-- Impact: the extension is not loaded, so popup/extension targets are unavailable to CDP.
-- Mitigation: use **Chrome for Testing** for E2E runs.
-
-### 2. Keychain prompt behavior
-
-- macOS prompts for Keychain access when launching browser automation.
-- Impact: if access is denied, browser startup can fail.
-- Mitigation: always launch Google Chrome for Testing with `--use-mock-keychain`.
-
-### 3. CDP transport requirement in Node
-
-- The test runner requires WebSocket support for CDP.
-- Mitigation: use Node with `--experimental-websocket`.
-
-### 4. Extension ID discovery
-
-- The test runner first finds the extension ID through Chrome DevTools Protocol targets.
-- If the extension service worker is not visible yet, it falls back to the generated profile metadata.
-
-### 5. Flake-resistance patterns in tests
-
-- Use polling for async bookmark operations (e.g., delete verification) instead of fixed short sleeps.
-- Use a dynamically allocated free remote-debugging port per run to avoid collisions.
-- Synthetic drag-and-drop via CDP can be unreliable; deterministic test hooks are used for reorder verification.
