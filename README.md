@@ -16,24 +16,20 @@ After code changes, return to `chrome://extensions/` and click Reload on the `Bo
 
 ## Development
 
-Automated tests run in **Chrome for Testing**, not your main Chrome profile. Stable Google Chrome may ignore `--load-extension`/`--disable-extensions-except` automation flags in some environments, so use Chrome for Testing for automated and reproducible development runs.
+Automated tests run in **Chrome for Testing**, not your main Chrome profile.
 
 Required tools on macOS:
 
 - `node` (Node 20+ recommended)
-- `jq`
 
 Install Chrome for Testing:
 
 ```bash
-tmp_dir=$(mktemp -d /tmp/chrome-for-testing-download.XXXXXX)
-cd "$tmp_dir"
-curl -fsSL https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json -o versions.json
-url=$(jq -r '.channels.Stable.downloads.chrome[] | select(.platform=="mac-arm64") | .url' versions.json)
-curl -fL "$url" -o chrome-mac-arm64.zip
-unzip -q -o chrome-mac-arm64.zip
+version=$(curl -fsSL https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_STABLE)
+curl -fL "https://storage.googleapis.com/chrome-for-testing-public/$version/mac-arm64/chrome-mac-arm64.zip" -o /tmp/chrome-mac-arm64.zip
+unzip -q -o /tmp/chrome-mac-arm64.zip -d /tmp/chrome-for-testing
 rm -rf "$HOME/Applications/Google Chrome for Testing.app"
-ditto 'chrome-mac-arm64/Google Chrome for Testing.app' "$HOME/Applications/Google Chrome for Testing.app"
+mv "/tmp/chrome-for-testing/chrome-mac-arm64/Google Chrome for Testing.app" "$HOME/Applications/"
 ```
 
 Run the E2E test suite in Chrome for Testing with an isolated temporary profile:
