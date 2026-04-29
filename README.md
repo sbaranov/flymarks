@@ -2,69 +2,45 @@
 
 Chrome extension that renders Bookmarks Bar entries in a Chrome-like popup menu with folder navigation, context actions, and bookmark operations.
 
-## Install Chrome for Testing
+## Quick Start
 
-This project uses **Chrome for Testing** for automation (not your personal Chrome profile).
-Install it as a per-user macOS app so it survives reboots and temporary-directory cleanup:
+Install the extension into your main Google Chrome profile:
 
-```text
-$HOME/Applications/Google Chrome for Testing.app
-```
+1. Open `chrome://extensions/` in Google Chrome.
+2. Enable Developer mode.
+3. Click Load unpacked.
+4. Select this repository folder.
+5. Open the toolbar action named `Bookmarks Menu`.
 
-### macOS (Apple Silicon)
+After code changes, return to `chrome://extensions/` and click Reload on the `Bookmarks Menu` card.
 
-```bash
-mkdir -p $HOME/Applications /tmp/chrome-for-testing-download
-cd /tmp/chrome-for-testing-download
+## Development
 
-curl -fsSL https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json -o versions.json
-url=$(jq -r '.channels.Stable.downloads.chrome[] | select(.platform=="mac-arm64") | .url' versions.json)
-curl -fL "$url" -o chrome-mac-arm64.zip
-rm -rf chrome-mac-arm64
-unzip -q -o chrome-mac-arm64.zip
-rm -rf "$HOME/Applications/Google Chrome for Testing.app"
-ditto 'chrome-mac-arm64/Google Chrome for Testing.app' "$HOME/Applications/Google Chrome for Testing.app"
-```
-
-Binary path:
-
-```text
-$HOME/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
-```
-
-### macOS (Intel)
-
-Use platform `mac-x64` instead of `mac-arm64` in the `jq` query, and replace `chrome-mac-arm64` with `chrome-mac-x64` in the zip filename and `ditto` source path.
-
-## Run Extension Test
-
-Use Chrome for Testing for automated or reproducible extension tests. Use default Google Chrome only for final visual verification against the real toolbar, bookmarks bar, favicon cache, and installed-profile context.
-
-From project root:
+Automated and manual development runs use **Chrome for Testing**, not your main Chrome profile. Install Chrome for Testing first if these commands fail.
 
 ```bash
-cd /path/to/bookmarks
 npm test
 ```
 
-Expected success output:
+Runs the E2E test suite in Chrome for Testing with an isolated temporary profile.
 
-```text
-PASS: Extension UI and interactions verified in live browser: ...
+```bash
+npm run browser
 ```
 
-## Notes
+Launches Chrome for Testing with the extension loaded using a reusable manual profile at `/tmp/bookmarks-ext-manual`.
 
-- Test runner uses an isolated temporary profile (`--user-data-dir`), so it does not touch your normal browser data.
-- Runner enables `--use-mock-keychain` to avoid Keychain unlock prompts.
-- If `BROWSER_BIN` is not set, runner uses `$HOME/Applications/Google Chrome for Testing.app`.
-- If you want to regenerate toolbar icons:
+```bash
+npm run browser:fresh
+```
+
+Launches Chrome for Testing with the extension loaded using a new temporary profile.
 
 ```bash
 npm run icons
 ```
 
-## Development Process
+Regenerates extension icons.
 
 ### Dependencies
 
@@ -76,10 +52,7 @@ Required tools on macOS:
 - `curl`
 - `jq`
 - `unzip`
-
-Optional:
-
-- `npm` (only for convenience scripts if you add them later)
+- `npm`
 
 ### Dev Loop
 
@@ -97,22 +70,45 @@ Optional:
    ```bash
    npm test
    ```
-4. Repeat.
+4. Use `npm run browser` or `npm run browser:fresh` for manual development checks in Chrome for Testing.
+5. Repeat.
 
-### Manual Testing: Chrome for Testing
+## Install Chrome for Testing
 
-If you want to inspect UI manually while developing, launch Chrome for Testing with:
+This project uses **Chrome for Testing** for automation and manual development checks. Install it as a per-user macOS app so it survives reboots and temporary-directory cleanup:
 
-```bash
-"$HOME/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing" \
-  --use-mock-keychain \
-  --user-data-dir=/tmp/bookmarks-ext-manual \
-  --load-extension="$PWD"
+```text
+$HOME/Applications/Google Chrome for Testing.app
 ```
 
-### Visual Verification: Default Chrome
+### macOS (Apple Silicon)
 
-For final visual checks, use the user's normal Google Chrome profile rather than Chrome for Testing. This matches the real toolbar, bookmarks bar, favicon cache, and extension popup context.
+```bash
+mkdir -p "$HOME/Applications"
+tmp_dir=$(mktemp -d /tmp/chrome-for-testing-download.XXXXXX)
+cd "$tmp_dir"
+
+curl -fsSL https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json -o versions.json
+url=$(jq -r '.channels.Stable.downloads.chrome[] | select(.platform=="mac-arm64") | .url' versions.json)
+curl -fL "$url" -o chrome-mac-arm64.zip
+unzip -q -o chrome-mac-arm64.zip
+rm -rf "$HOME/Applications/Google Chrome for Testing.app"
+ditto 'chrome-mac-arm64/Google Chrome for Testing.app' "$HOME/Applications/Google Chrome for Testing.app"
+```
+
+Binary path:
+
+```text
+$HOME/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
+```
+
+### macOS (Intel)
+
+Use platform `mac-x64` instead of `mac-arm64` in the `jq` query, and replace `chrome-mac-arm64` with `chrome-mac-x64` in the zip filename and `ditto` source path.
+
+## Manual Verification in Main Chrome
+
+For final visual checks, use your normal Google Chrome profile rather than Chrome for Testing. This matches the real toolbar, bookmarks bar, favicon cache, and extension popup context.
 
 1. Open `chrome://extensions/` in Google Chrome.
 2. Ensure Developer mode is on.
@@ -123,10 +119,10 @@ For final visual checks, use the user's normal Google Chrome profile rather than
 
 Ad hoc Chrome screenshots should be named `chrome-*.png`; this convention is ignored by git.
 
-### Important Caveats
+## Important Caveats
 
-- Stable Google Chrome on this machine blocks `--load-extension`/`--disable-extensions-except` in this automation setup, so use Chrome for Testing.
-- Test runner validates core interactions (render, open, context action, reorder, folder navigation). It is not a pixel-perfect visual diff test.
+- Stable Google Chrome may ignore `--load-extension`/`--disable-extensions-except` automation flags in some environments, so use Chrome for Testing for automated and reproducible development runs.
+- `npm test` validates core interactions (render, open, context action, reorder, folder navigation). It is not a pixel-perfect visual diff test.
 - The extension uses Chrome APIs (`chrome.bookmarks`, `chrome.tabs`, `chrome.windows`) and must run as an unpacked extension in a Chromium-based browser.
 
 ## Browser Testing Architecture Notes
@@ -140,7 +136,7 @@ This section documents the key constraints and decisions behind the E2E browser 
 
 ### 2. Stable Google Chrome is not suitable for unpacked-extension automation here
 
-- In this setup, stable Google Chrome logs:
+- In some setups, stable Google Chrome logs:
   - `--load-extension is not allowed in Google Chrome, ignoring.`
   - `--disable-extensions-except is not allowed in Google Chrome, ignoring.`
 - Impact: the extension is not loaded, so popup/extension targets are unavailable to CDP.
