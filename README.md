@@ -48,6 +48,16 @@ Launch Chrome for Testing for manual testing using a reusable persistent profile
 npm run browser
 ```
 
+## Publishing
+
+Create a Chrome Web Store upload package:
+
+```bash
+npm run package
+```
+
+This writes `dist/bookmarks-menu.zip` with `manifest.json` at the archive root.
+
 ## Browser Testing Architecture Notes
 
 This section documents the key constraints and decisions behind the E2E browser test environment.

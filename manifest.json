@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Bookmarks Menu",
   "version": "1.0.0",
-  "description": "Chrome-style bookmarks bar menu with context actions and drag reorder.",
+  "description": "Chrome-style bookmarks menu with context actions and drag reorder.",
   "permissions": ["bookmarks", "tabs", "tabGroups", "storage", "favicon"],
   "background": {
     "service_worker": "background.js"
