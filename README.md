@@ -29,7 +29,7 @@ Required tools on macOS:
 Install Chrome for Testing:
 
 ```bash
-npx @puppeteer/browsers install chrome@stable
+npx @puppeteer/browsers install chrome@stable --path ~/.cache
 ```
 
 Run the E2E test suite in Chrome for Testing with an isolated temporary profile:

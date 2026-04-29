@@ -8,9 +8,14 @@ export function findChromeForTesting(repoDir = path.resolve(process.cwd())) {
   const executableRelativePath = process.platform === 'darwin'
     ? 'chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing'
     : 'chrome-linux64/chrome';
-  const installDir = path.join(repoDir, 'chrome');
+  const installDirs = [
+    path.join(os.homedir(), '.cache/chrome'),
+    path.join(repoDir, 'chrome'),
+  ];
 
-  if (fs.existsSync(installDir)) {
+  for (const installDir of installDirs) {
+    if (!fs.existsSync(installDir)) continue;
+
     const candidates = fs.readdirSync(installDir)
       .map((name) => path.join(installDir, name, executableRelativePath))
       .filter((candidate) => fs.existsSync(candidate))
@@ -28,6 +33,6 @@ export function findChromeForTesting(repoDir = path.resolve(process.cwd())) {
   if (process.platform === 'darwin' && fs.existsSync(homeInstall)) return homeInstall;
 
   throw new Error(
-    'Chrome for Testing was not found. Run: npx @puppeteer/browsers install chrome@stable',
+    'Chrome for Testing was not found. Run: npx @puppeteer/browsers install chrome@stable --path ~/.cache',
   );
 }
