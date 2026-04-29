@@ -20,11 +20,7 @@ After code changes, return to `chrome://extensions/` and click Reload on the `Fl
 
 ## Development
 
-Automated tests run in **Chrome for Testing**, not your main Chrome profile.
-
-Required tools on macOS:
-
-- `node` (Node 20+ recommended)
+Automated tests run in [Chrome for Testing](https://developer.chrome.com/blog/chrome-for-testing), not your main Chrome profile.
 
 Install Chrome for Testing:
 
@@ -32,13 +28,13 @@ Install Chrome for Testing:
 npx @puppeteer/browsers install chrome@stable --path ~/.cache
 ```
 
-Run the E2E test suite in Chrome for Testing with an isolated temporary profile:
+Run tests:
 
 ```bash
 npm test
 ```
 
-Launch Chrome for Testing for manual testing using a reusable persistent profile:
+Launch a manual test browser:
 
 ```bash
 npm run browser
