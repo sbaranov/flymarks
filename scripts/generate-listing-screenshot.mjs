@@ -7,9 +7,9 @@ import { spawn } from 'node:child_process';
 const repoDir = path.resolve(process.cwd());
 const browserBin = process.env.BROWSER_BIN ||
   path.join(os.homedir(), 'Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing');
-const popupPath = path.join(repoDir, 'example.png');
+const popupPath = path.join(repoDir, 'assets/preview.png');
 const iconPath = path.join(repoDir, 'icons/icon32.png');
-const outputPath = path.join(repoDir, 'listing-screenshot.png');
+const outputPath = path.join(repoDir, 'assets/listing-screenshot.png');
 const htmlPath = path.join(os.tmpdir(), 'flymarks-listing-screenshot.html');
 const viewport = { width: 640, height: 400 };
 
@@ -281,7 +281,7 @@ async function main() {
     throw new Error(`Chrome for Testing was not found at ${browserBin}`);
   }
   if (!fs.existsSync(popupPath)) {
-    throw new Error('example.png was not found. Run npm run example first.');
+    throw new Error('assets/preview.png was not found. Run npm run example first.');
   }
   if (!fs.existsSync(iconPath)) {
     throw new Error(`Extension icon was not found at ${iconPath}`);

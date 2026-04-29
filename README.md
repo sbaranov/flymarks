@@ -1,10 +1,10 @@
 # Flymarks
 
-Flymarks is a simple Chrome extension that shows bookmarks as a clean and compact dropdown menu, with folder navigation, context actions, and bookmark operations.
+Flymarks is a lightweight Chrome extension that shows bookmarks as a clean and compact dropdown menu, with folder navigation, context actions, and bookmark operations.
 
 It is open source so you can verify that it does not send your bookmark data anywhere.
 
-![Flymarks popup example](example.png)
+![Flymarks popup preview](assets/preview.png)
 
 ## Quick Start
 

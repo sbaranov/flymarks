@@ -7,7 +7,7 @@ import { spawn } from 'node:child_process';
 const repoDir = path.resolve(process.cwd());
 const browserBin = process.env.BROWSER_BIN ||
   path.join(os.homedir(), 'Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing');
-const outputPath = path.join(repoDir, 'example.png');
+const outputPath = path.join(repoDir, 'assets/preview.png');
 const htmlPath = path.join(os.tmpdir(), 'flymarks-popup-example.html');
 const viewport = { width: 522, height: 724 };
 const scale = 0.5;
