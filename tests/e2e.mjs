@@ -3,10 +3,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import net from 'node:net';
+import { findChromeForTesting } from '../scripts/chrome-for-testing.mjs';
 
 const EXT_DIR = path.resolve(process.cwd());
-const BROWSER_BIN = process.env.BROWSER_BIN ||
-  path.join(os.homedir(), 'Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing');
+const BROWSER_BIN = findChromeForTesting(EXT_DIR);
 const HEADLESS = process.env.HEADLESS !== '0';
 
 function sleep(ms) {
@@ -153,7 +153,7 @@ async function main() {
     throw new Error(`Chrome for Testing was not found at ${BROWSER_BIN}`);
   }
 
-  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bookmarks-ext-'));
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'flymarks-ext-'));
   const chrome = spawn(
     BROWSER_BIN,
     [

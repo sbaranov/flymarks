@@ -3,10 +3,10 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import { findChromeForTesting } from './chrome-for-testing.mjs';
 
 const repoDir = path.resolve(process.cwd());
-const browserBin = process.env.BROWSER_BIN ||
-  path.join(os.homedir(), 'Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing');
+const browserBin = findChromeForTesting(repoDir);
 const popupPath = path.join(repoDir, 'assets/preview.png');
 const iconPath = path.join(repoDir, 'icons/icon32.png');
 const outputPath = path.join(repoDir, 'assets/banner.png');

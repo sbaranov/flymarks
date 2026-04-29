@@ -29,11 +29,7 @@ Required tools on macOS:
 Install Chrome for Testing:
 
 ```bash
-version=$(curl -fsSL https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_STABLE)
-curl -fL "https://storage.googleapis.com/chrome-for-testing-public/$version/mac-arm64/chrome-mac-arm64.zip" -o /tmp/chrome-mac-arm64.zip
-unzip -q -o /tmp/chrome-mac-arm64.zip -d /tmp/chrome-for-testing
-rm -rf "$HOME/Applications/Google Chrome for Testing.app"
-mv "/tmp/chrome-for-testing/chrome-mac-arm64/Google Chrome for Testing.app" "$HOME/Applications/"
+npx @puppeteer/browsers install chrome@stable
 ```
 
 Run the E2E test suite in Chrome for Testing with an isolated temporary profile:

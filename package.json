@@ -11,8 +11,8 @@
     "preview": "node --experimental-websocket scripts/generate-preview.mjs",
     "banner": "npm run preview && node --experimental-websocket scripts/generate-banner.mjs",
     "package": "node scripts/package-extension.mjs",
-    "browser": "browser_bin=\"${BROWSER_BIN:-$HOME/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing}\"; \"$browser_bin\" --use-mock-keychain --user-data-dir=/tmp/bookmarks-ext-manual --no-first-run --no-default-browser-check --load-extension=\"$PWD\"",
-    "browser:fresh": "profile_dir=$(mktemp -d /tmp/bookmarks-ext-manual.XXXXXX) && browser_bin=\"${BROWSER_BIN:-$HOME/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing}\" && \"$browser_bin\" --use-mock-keychain --user-data-dir=\"$profile_dir\" --no-first-run --no-default-browser-check --load-extension=\"$PWD\""
+    "browser": "node scripts/launch-browser.mjs",
+    "browser:fresh": "node scripts/launch-browser.mjs --fresh"
   },
   "keywords": [],
   "author": "",
