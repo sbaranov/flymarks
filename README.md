@@ -48,6 +48,10 @@ Launch Chrome for Testing for manual testing using a reusable persistent profile
 npm run browser
 ```
 
+### Agent Workflow
+
+If you use Codex or Claude Code, this project pairs well with the optional [Chrome Extension skill](https://github.com/sbaranov/chrome-extension-skill). The skill captures the Chrome extension testing, packaging, screenshot, privacy, and Chrome Web Store workflow used by this repo.
+
 ## Publishing
 
 Create a Chrome Web Store upload package:
