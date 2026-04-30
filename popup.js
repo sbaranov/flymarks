@@ -4,11 +4,9 @@ const itemTemplate = document.getElementById('item-template');
 const SNAPSHOT_KEY = 'bookmarksBarSnapshotV1';
 const SNAPSHOT_LOCAL_KEY = 'bookmarksBarSnapshotLocalV1';
 const SETTINGS_KEY = 'bookmarksBarSettingsV1';
-const VIRTUAL_APPS_ID = 'virtual:apps';
 const DRAG_FOLDER_ENTER_DELAY = 550;
 const DROP_INTO_FOLDER_EDGE_RATIO = 0.25;
 const DEFAULT_SETTINGS = {
-  showAppsShortcut: true,
   showOtherBookmarks: true,
   showMobileBookmarks: true,
 };
@@ -142,12 +140,7 @@ async function getVirtualRootFolders() {
       }
       return node;
     });
-  return [
-    ...(state.settings.showAppsShortcut
-      ? [{ id: VIRTUAL_APPS_ID, title: 'Apps', index: -2, virtualType: 'apps' }]
-      : []),
-    ...rootFolders,
-  ];
+  return rootFolders;
 }
 
 function isRootView() {
@@ -188,11 +181,6 @@ async function loadRoot() {
 }
 
 async function enterFolder(folderId, replacePath = false, shouldContinue = () => true) {
-  if (folderId === VIRTUAL_APPS_ID) {
-    await api.createTab({ url: 'chrome://apps/', active: true });
-    window.close();
-    return;
-  }
   if (isVirtualFolderId(folderId)) {
     await enterVirtualFolder(folderId, replacePath);
     return;
@@ -638,7 +626,7 @@ function createItem(node, source = 'main') {
 
   if (isFolder(node)) {
     const count = node.children?.length ?? 0;
-    item.querySelector('.item-meta').textContent = node.virtualType === 'apps' ? '' : String(count);
+    item.querySelector('.item-meta').textContent = String(count);
   } else {
     item.querySelector('.item-meta').textContent = '';
     const favicon = document.createElement('img');
@@ -958,9 +946,6 @@ function openContextMenu(_x, _y, node, opts = {}) {
     const url = syntheticVirtualContext ? getBookmarkManagerUrl() : getBookmarkManagerNodeUrl(node);
     await api.createTab({ url, active: true });
   }, { refresh: false, closePopup: true }));
-  listEl.append(createContextAction('Show Apps Shortcut', async () => {
-    await setSetting('showAppsShortcut', !state.settings.showAppsShortcut);
-  }, { checked: state.settings.showAppsShortcut }));
   listEl.append(createContextAction('Show Other Bookmarks', async () => {
     await setSetting('showOtherBookmarks', !state.settings.showOtherBookmarks);
   }, { checked: state.settings.showOtherBookmarks }));

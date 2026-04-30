@@ -314,26 +314,10 @@ async function main() {
           !document.querySelector('#back-btn') &&
           !document.querySelector('#refresh-btn');
 
-        const virtualTitles = ${JSON.stringify(['Apps', ...fixture.topLevelVirtuals.map((n) => n.title)])};
+        const virtualTitles = ${JSON.stringify(fixture.topLevelVirtuals.map((n) => n.title))};
         const rowTitles = [...document.querySelectorAll('#bookmark-list > .item .item-title')]
           .map((el) => el.textContent.trim());
         const virtualsFirst = virtualTitles.every((title, index) => rowTitles[index] === title);
-
-        const appsShortcut = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')]
-          .find((row) => row.querySelector('.item-title')?.textContent.trim() === 'Apps');
-        const appsCounter = appsShortcut?.querySelector('.item-meta')?.textContent.trim() || '';
-        const appsIconClass = appsShortcut?.classList.contains('virtual-apps') || false;
-        const orig = { create: chrome.tabs.create, close: window.close };
-        const appsCalls = { create: null, closeCount: 0 };
-        chrome.tabs.create = async (payload) => {
-          appsCalls.create = payload;
-          return { id: 777, ...payload };
-        };
-        window.close = () => { appsCalls.closeCount += 1; };
-        appsShortcut?.click();
-        await new Promise((r) => setTimeout(r, 80));
-        chrome.tabs.create = orig.create;
-        window.close = orig.close;
 
         const otherBookmarks = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')]
           .find((row) => row.querySelector('.item-title')?.textContent.trim() === 'Other Bookmarks');
@@ -341,17 +325,16 @@ async function main() {
           .find((row) => row.querySelector('.item-title')?.textContent.trim() === 'Mobile Bookmarks');
         const otherIconClass = otherBookmarks?.classList.contains('virtual-other-bookmarks') || false;
         const mobileIconClass = mobileBookmarks?.classList.contains('virtual-mobile-bookmarks') || false;
+        const appsAbsent = !rowTitles.includes('Apps');
         const tabGroupsAbsent = !rowTitles.includes('Tab Groups');
 
         return {
           toolbarGone,
           virtualsFirst,
-          appsCounter,
-          appsIconClass,
           otherIconClass,
           mobileIconClass,
+          appsAbsent,
           tabGroupsAbsent,
-          appsCalls,
         };
       })();
       `,
@@ -360,78 +343,11 @@ async function main() {
     must(rootNavigation.toolbarGone, 'Popup toolbar/header is still rendered.');
     must(rootNavigation.virtualsFirst, `Virtual root folders were not rendered first: ${JSON.stringify(rootNavigation)}`);
     must(
-      rootNavigation.appsCounter === '' &&
-      rootNavigation.appsIconClass &&
       rootNavigation.otherIconClass &&
+      rootNavigation.appsAbsent &&
       rootNavigation.tabGroupsAbsent &&
-      (!hasMobileBookmarksRoot || rootNavigation.mobileIconClass) &&
-      rootNavigation.appsCalls.create?.url === 'chrome://apps/' &&
-        rootNavigation.appsCalls.create?.active === true &&
-        rootNavigation.appsCalls.closeCount > 0,
-      `Apps did not open chrome://apps/: ${JSON.stringify(rootNavigation)}`,
-    );
-
-    const virtualFolderContextMenu = await cdp.eval(
-      sessionId,
-      `
-      (async () => {
-        await window.__popupTest.refreshCurrent();
-        const appsRow = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')].find((row) =>
-          row.querySelector('.item-title')?.textContent.trim() === 'Apps'
-        );
-        appsRow?.dispatchEvent(new MouseEvent('contextmenu', {
-          bubbles: true,
-          cancelable: true,
-          clientX: 80,
-          clientY: 80,
-          button: 2,
-        }));
-        await new Promise((r) => setTimeout(r, 80));
-
-        const actions = [...document.querySelectorAll('#bookmark-list > .item.context-action')].map((row) => ({
-          label: row.querySelector('.item-title')?.textContent.trim(),
-          disabled: row.classList.contains('disabled'),
-        }));
-        const byLabel = Object.fromEntries(actions.map((action) => [action.label, action]));
-        const disabledThroughDelete = [
-          'Open All',
-          'Open All in New Window',
-          'Open All in Incognito Window',
-          'Rename...',
-          'Cut',
-          'Copy',
-          'Paste',
-          'Delete',
-        ].every((label) => byLabel[label]?.disabled === true);
-        const globalActionsEnabled = [
-          'Open Bookmarks Manager',
-          'Show Apps Shortcut',
-          'Show Other Bookmarks',
-          'Show Mobile Bookmarks',
-        ].every((label) => byLabel[label]?.disabled === false);
-        const addActionsDisabled = byLabel['Add Page...']?.disabled === true &&
-          byLabel['Add Folder...']?.disabled === true;
-
-        return {
-          foundAppsRow: Boolean(appsRow),
-          contextOpen: window.__popupTest.getState().contextOpen,
-          separateOverlay: Boolean(document.querySelector('#context-menu')),
-          actions,
-          disabledThroughDelete,
-          addActionsDisabled,
-          globalActionsEnabled,
-        };
-      })();
-      `,
-    );
-    must(
-      virtualFolderContextMenu.foundAppsRow &&
-        virtualFolderContextMenu.contextOpen &&
-        !virtualFolderContextMenu.separateOverlay &&
-        virtualFolderContextMenu.disabledThroughDelete &&
-        virtualFolderContextMenu.addActionsDisabled &&
-        virtualFolderContextMenu.globalActionsEnabled,
-      `Virtual folder context menu mismatch: ${JSON.stringify(virtualFolderContextMenu)}`,
+      (!hasMobileBookmarksRoot || rootNavigation.mobileIconClass),
+      `Virtual root folders mismatch: ${JSON.stringify(rootNavigation)}`,
     );
 
     const realVirtualFolderOpenOptions = await cdp.eval(
@@ -509,30 +425,24 @@ async function main() {
         };
 
         const initial = { state: window.__popupTest.getState().settings, titles: titles() };
-        const appsOff = await clickToggle('Show Apps Shortcut');
         const otherOff = await clickToggle('Show Other Bookmarks');
         const mobileOff = await clickToggle('Show Mobile Bookmarks');
-        const appsOn = await clickToggle('Show Apps Shortcut');
         const otherOn = await clickToggle('Show Other Bookmarks');
         const mobileOn = await clickToggle('Show Mobile Bookmarks');
 
-        return { initial, appsOff, otherOff, mobileOff, appsOn, otherOn, mobileOn };
+        return { initial, otherOff, mobileOff, otherOn, mobileOn };
       })();
       `,
     );
     must(
-      virtualSettingToggles.initial.state.showAppsShortcut === true &&
+      virtualSettingToggles.initial.state.showAppsShortcut === undefined &&
         virtualSettingToggles.initial.state.showTabGroups === undefined &&
         virtualSettingToggles.initial.state.showOtherBookmarks === true &&
         virtualSettingToggles.initial.state.showMobileBookmarks === true &&
-        virtualSettingToggles.initial.titles.includes('Apps') &&
+        !virtualSettingToggles.initial.titles.includes('Apps') &&
         !virtualSettingToggles.initial.titles.includes('Tab Groups') &&
         virtualSettingToggles.initial.titles.includes('Other Bookmarks') &&
         (!hasMobileBookmarksRoot || virtualSettingToggles.initial.titles.includes('Mobile Bookmarks')) &&
-        virtualSettingToggles.appsOff.found &&
-        virtualSettingToggles.appsOff.iconBefore === '✓' &&
-        virtualSettingToggles.appsOff.state.showAppsShortcut === false &&
-        !virtualSettingToggles.appsOff.titles.includes('Apps') &&
         virtualSettingToggles.otherOff.found &&
         virtualSettingToggles.otherOff.iconBefore === '✓' &&
         virtualSettingToggles.otherOff.state.showOtherBookmarks === false &&
@@ -541,10 +451,6 @@ async function main() {
         virtualSettingToggles.mobileOff.iconBefore === '✓' &&
         virtualSettingToggles.mobileOff.state.showMobileBookmarks === false &&
         (!hasMobileBookmarksRoot || !virtualSettingToggles.mobileOff.titles.includes('Mobile Bookmarks')) &&
-        virtualSettingToggles.appsOn.found &&
-        virtualSettingToggles.appsOn.iconBefore === '' &&
-        virtualSettingToggles.appsOn.state.showAppsShortcut === true &&
-        virtualSettingToggles.appsOn.titles.includes('Apps') &&
         virtualSettingToggles.otherOn.found &&
         virtualSettingToggles.otherOn.iconBefore === '' &&
         virtualSettingToggles.otherOn.state.showOtherBookmarks === true &&
@@ -976,7 +882,6 @@ async function main() {
         'Add Page...',
         'Add Folder...',
         'Open in Bookmarks Manager',
-        'Show Apps Shortcut',
         'Show Other Bookmarks',
         'Show Mobile Bookmarks',
       ]),

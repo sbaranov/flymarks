@@ -197,25 +197,6 @@ body {
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.75 4.75c0-.69.56-1.25 1.25-1.25h3.05c.38 0 .74.17.98.46l.72.84H13c.69 0 1.25.56 1.25 1.25v6.2c0 .69-.56 1.25-1.25 1.25H3c-.69 0-1.25-.56-1.25-1.25v-7.5Z' fill='none' stroke='black' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") center / 18px 18px no-repeat;
 }
 
-.item.folder.virtual-apps .item-icon::before {
-  inset: auto;
-  width: 3px;
-  height: 3px;
-  border-radius: 1px;
-  -webkit-mask: none;
-  mask: none;
-  box-shadow:
-    -5px -5px 0 currentColor,
-    0 -5px 0 currentColor,
-    5px -5px 0 currentColor,
-    -5px 0 0 currentColor,
-    0 0 0 currentColor,
-    5px 0 0 currentColor,
-    -5px 5px 0 currentColor,
-    0 5px 0 currentColor,
-    5px 5px 0 currentColor;
-}
-
 .item.folder.virtual-other-bookmarks .item-icon::before {
   inset: 0;
   background: currentColor;
