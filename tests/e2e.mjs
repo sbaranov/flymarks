@@ -314,7 +314,7 @@ async function main() {
           !document.querySelector('#back-btn') &&
           !document.querySelector('#refresh-btn');
 
-        const virtualTitles = ${JSON.stringify(['Apps', 'Tab Groups', ...fixture.topLevelVirtuals.map((n) => n.title)])};
+        const virtualTitles = ${JSON.stringify(['Apps', ...fixture.topLevelVirtuals.map((n) => n.title)])};
         const rowTitles = [...document.querySelectorAll('#bookmark-list > .item .item-title')]
           .map((el) => el.textContent.trim());
         const virtualsFirst = virtualTitles.every((title, index) => rowTitles[index] === title);
@@ -335,45 +335,23 @@ async function main() {
         chrome.tabs.create = orig.create;
         window.close = orig.close;
 
-        const tabGroupsVirtual = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')]
-          .find((row) => row.querySelector('.item-title')?.textContent.trim() === 'Tab Groups');
-        const tabGroupsIconClass = tabGroupsVirtual?.classList.contains('virtual-tab-groups-root') || false;
         const otherBookmarks = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')]
           .find((row) => row.querySelector('.item-title')?.textContent.trim() === 'Other Bookmarks');
         const mobileBookmarks = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')]
           .find((row) => row.querySelector('.item-title')?.textContent.trim() === 'Mobile Bookmarks');
         const otherIconClass = otherBookmarks?.classList.contains('virtual-other-bookmarks') || false;
         const mobileIconClass = mobileBookmarks?.classList.contains('virtual-mobile-bookmarks') || false;
-        tabGroupsVirtual.click();
-        for (let i = 0; i < 20; i++) {
-          if (document.querySelector('#bookmark-list > .item.back')) break;
-          await new Promise((r) => setTimeout(r, 80));
-        }
-        const enteredVirtual = window.__popupTest.getState().currentFolderId === 'virtual:tab-groups';
-        const virtualBackLabel = document.querySelector('#bookmark-list > .item.back .item-title')?.textContent.trim();
-        const virtualEmptyText = document.querySelector('#bookmark-list > .empty')?.textContent.trim() || '';
-
-        document.querySelector('#bookmark-list > .item.back')?.click();
-        for (let i = 0; i < 20; i++) {
-          if (window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId) break;
-          await new Promise((r) => setTimeout(r, 80));
-        }
-        const backWorks = window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId &&
-          !document.querySelector('#bookmark-list > .item.back');
+        const tabGroupsAbsent = !rowTitles.includes('Tab Groups');
 
         return {
           toolbarGone,
           virtualsFirst,
           appsCounter,
           appsIconClass,
-          tabGroupsIconClass,
           otherIconClass,
           mobileIconClass,
+          tabGroupsAbsent,
           appsCalls,
-          enteredVirtual,
-          virtualBackLabel,
-          virtualEmptyText,
-          backWorks,
         };
       })();
       `,
@@ -384,24 +362,14 @@ async function main() {
     must(
       rootNavigation.appsCounter === '' &&
       rootNavigation.appsIconClass &&
-      rootNavigation.tabGroupsIconClass &&
       rootNavigation.otherIconClass &&
+      rootNavigation.tabGroupsAbsent &&
       (!hasMobileBookmarksRoot || rootNavigation.mobileIconClass) &&
       rootNavigation.appsCalls.create?.url === 'chrome://apps/' &&
         rootNavigation.appsCalls.create?.active === true &&
         rootNavigation.appsCalls.closeCount > 0,
       `Apps did not open chrome://apps/: ${JSON.stringify(rootNavigation)}`,
     );
-    must(rootNavigation.enteredVirtual !== false, `Virtual root folder did not open: ${JSON.stringify(rootNavigation)}`);
-    must(
-      rootNavigation.virtualBackLabel === 'Tab Groups',
-      `Back row did not show current folder title: ${JSON.stringify(rootNavigation)}`,
-    );
-    must(
-      rootNavigation.virtualEmptyText === 'No tab groups',
-      `Empty Tab Groups folder did not show relevant text: ${JSON.stringify(rootNavigation)}`,
-    );
-    must(rootNavigation.backWorks, `Back row did not return to Bookmarks Bar root: ${JSON.stringify(rootNavigation)}`);
 
     const virtualFolderContextMenu = await cdp.eval(
       sessionId,
@@ -429,7 +397,6 @@ async function main() {
           'Open All',
           'Open All in New Window',
           'Open All in Incognito Window',
-          'Open All in New Tab Group',
           'Rename...',
           'Cut',
           'Copy',
@@ -439,7 +406,6 @@ async function main() {
         const globalActionsEnabled = [
           'Open Bookmarks Manager',
           'Show Apps Shortcut',
-          'Show Tab Groups',
           'Show Other Bookmarks',
           'Show Mobile Bookmarks',
         ].every((label) => byLabel[label]?.disabled === false);
@@ -493,7 +459,6 @@ async function main() {
           'Open All',
           'Open All in New Window',
           'Open All in Incognito Window',
-          'Open All in New Tab Group',
         ].every((label) => byLabel[label]?.disabled === false);
 
         return {
@@ -545,35 +510,29 @@ async function main() {
 
         const initial = { state: window.__popupTest.getState().settings, titles: titles() };
         const appsOff = await clickToggle('Show Apps Shortcut');
-        const tabsOff = await clickToggle('Show Tab Groups');
         const otherOff = await clickToggle('Show Other Bookmarks');
         const mobileOff = await clickToggle('Show Mobile Bookmarks');
         const appsOn = await clickToggle('Show Apps Shortcut');
-        const tabsOn = await clickToggle('Show Tab Groups');
         const otherOn = await clickToggle('Show Other Bookmarks');
         const mobileOn = await clickToggle('Show Mobile Bookmarks');
 
-        return { initial, appsOff, tabsOff, otherOff, mobileOff, appsOn, tabsOn, otherOn, mobileOn };
+        return { initial, appsOff, otherOff, mobileOff, appsOn, otherOn, mobileOn };
       })();
       `,
     );
     must(
       virtualSettingToggles.initial.state.showAppsShortcut === true &&
-        virtualSettingToggles.initial.state.showTabGroups === true &&
+        virtualSettingToggles.initial.state.showTabGroups === undefined &&
         virtualSettingToggles.initial.state.showOtherBookmarks === true &&
         virtualSettingToggles.initial.state.showMobileBookmarks === true &&
         virtualSettingToggles.initial.titles.includes('Apps') &&
-        virtualSettingToggles.initial.titles.includes('Tab Groups') &&
+        !virtualSettingToggles.initial.titles.includes('Tab Groups') &&
         virtualSettingToggles.initial.titles.includes('Other Bookmarks') &&
         (!hasMobileBookmarksRoot || virtualSettingToggles.initial.titles.includes('Mobile Bookmarks')) &&
         virtualSettingToggles.appsOff.found &&
         virtualSettingToggles.appsOff.iconBefore === '✓' &&
         virtualSettingToggles.appsOff.state.showAppsShortcut === false &&
         !virtualSettingToggles.appsOff.titles.includes('Apps') &&
-        virtualSettingToggles.tabsOff.found &&
-        virtualSettingToggles.tabsOff.iconBefore === '✓' &&
-        virtualSettingToggles.tabsOff.state.showTabGroups === false &&
-        !virtualSettingToggles.tabsOff.titles.includes('Tab Groups') &&
         virtualSettingToggles.otherOff.found &&
         virtualSettingToggles.otherOff.iconBefore === '✓' &&
         virtualSettingToggles.otherOff.state.showOtherBookmarks === false &&
@@ -586,10 +545,6 @@ async function main() {
         virtualSettingToggles.appsOn.iconBefore === '' &&
         virtualSettingToggles.appsOn.state.showAppsShortcut === true &&
         virtualSettingToggles.appsOn.titles.includes('Apps') &&
-        virtualSettingToggles.tabsOn.found &&
-        virtualSettingToggles.tabsOn.iconBefore === '' &&
-        virtualSettingToggles.tabsOn.state.showTabGroups === true &&
-        virtualSettingToggles.tabsOn.titles.includes('Tab Groups') &&
         virtualSettingToggles.otherOn.found &&
         virtualSettingToggles.otherOn.iconBefore === '' &&
         virtualSettingToggles.otherOn.state.showOtherBookmarks === true &&
@@ -599,232 +554,6 @@ async function main() {
         virtualSettingToggles.mobileOn.state.showMobileBookmarks === true &&
         (!hasMobileBookmarksRoot || virtualSettingToggles.mobileOn.titles.includes('Mobile Bookmarks')),
       `Virtual root settings did not toggle correctly: ${JSON.stringify(virtualSettingToggles)}`,
-    );
-
-    const tabGroupsVirtualFolder = await cdp.eval(
-      sessionId,
-      `
-      (async () => {
-        const firstTab = await chrome.tabs.create({ url: 'https://example.com/#codex-tab-group-a', active: false });
-        const secondTab = await chrome.tabs.create({ url: 'https://example.com/#codex-tab-group-b', active: false });
-        const groupId = await chrome.tabs.group({ tabIds: [firstTab.id, secondTab.id] });
-        await chrome.tabGroups.update(groupId, { title: 'Codex Test Group' });
-        await window.__popupTest.refreshCurrent();
-
-        const tabGroupsRow = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')].find((row) =>
-          row.querySelector('.item-title')?.textContent.trim() === 'Tab Groups'
-        );
-        const rootCounter = tabGroupsRow?.querySelector('.item-meta')?.textContent.trim();
-        tabGroupsRow?.click();
-        for (let i = 0; i < 20; i++) {
-          const found = [...document.querySelectorAll('#bookmark-list > .item .item-title')]
-            .some((el) => el.textContent.trim() === 'Codex Test Group');
-          if (found) break;
-          await new Promise((r) => setTimeout(r, 80));
-        }
-
-        const groupVisible = [...document.querySelectorAll('#bookmark-list > .item .item-title')]
-          .some((el) => el.textContent.trim() === 'Codex Test Group');
-        const groupRow = [...document.querySelectorAll('#bookmark-list > .item')].find((row) =>
-          row.querySelector('.item-title')?.textContent.trim() === 'Codex Test Group'
-        );
-        const groupCounter = groupRow?.querySelector('.item-meta')?.textContent.trim();
-        if (groupRow) {
-          groupRow.dispatchEvent(new MouseEvent('contextmenu', {
-            bubbles: true,
-            cancelable: true,
-            clientX: 120,
-            clientY: 120,
-            button: 2,
-          }));
-          await new Promise((r) => setTimeout(r, 80));
-        }
-        const renameAction = [...document.querySelectorAll('#bookmark-list > .item.context-action')].find((row) =>
-          row.querySelector('.item-title')?.textContent.trim() === 'Rename...'
-        );
-        const origRename = { prompt: window.prompt, update: chrome.bookmarks.update, updateGroup: chrome.tabGroups.update };
-        const renameCalls = { prompt: null, bookmarkUpdate: null, tabGroupUpdate: null };
-        window.prompt = (message, defaultValue) => {
-          renameCalls.prompt = { message, defaultValue };
-          return 'Renamed Codex Test Group';
-        };
-        chrome.bookmarks.update = async (id, changes) => {
-          renameCalls.bookmarkUpdate = { id, changes };
-          return { id, ...changes };
-        };
-        chrome.tabGroups.update = async (id, changes) => {
-          renameCalls.tabGroupUpdate = { id, changes };
-          return origRename.updateGroup(id, changes);
-        };
-        renameAction?.click();
-        await new Promise((r) => setTimeout(r, 120));
-        window.prompt = origRename.prompt;
-        chrome.bookmarks.update = origRename.update;
-        chrome.tabGroups.update = origRename.updateGroup;
-
-        await window.__popupTest.refreshCurrent();
-        const renamedGroupVisible = [...document.querySelectorAll('#bookmark-list > .item .item-title')]
-          .some((el) => el.textContent.trim() === 'Renamed Codex Test Group');
-        const renamedGroupRow = [...document.querySelectorAll('#bookmark-list > .item')].find((row) =>
-          row.querySelector('.item-title')?.textContent.trim() === 'Renamed Codex Test Group'
-        );
-        const renamedGroupCounter = renamedGroupRow?.querySelector('.item-meta')?.textContent.trim();
-        renamedGroupRow?.click();
-        for (let i = 0; i < 20; i++) {
-          const found = [...document.querySelectorAll('#bookmark-list > .item.bookmark')].length >= 2;
-          if (found) break;
-          await new Promise((r) => setTimeout(r, 80));
-        }
-
-        const backLabel = document.querySelector('#bookmark-list > .item.back .item-title')?.textContent.trim();
-        const tabRows = [...document.querySelectorAll('#bookmark-list > .item.bookmark')];
-        const tabVisible = tabRows.length >= 2;
-
-        const orig = { update: chrome.tabs.update, close: window.close };
-        const calls = { update: null, closeCount: 0 };
-        chrome.tabs.update = async (id, payload) => {
-          calls.update = { id, payload };
-          return { id, ...payload };
-        };
-        window.close = () => { calls.closeCount += 1; };
-        tabRows[0]?.click();
-        await new Promise((r) => setTimeout(r, 80));
-        chrome.tabs.update = orig.update;
-        window.close = orig.close;
-
-        document.querySelector('#bookmark-list > .item.back')?.click();
-        await new Promise((r) => setTimeout(r, 80));
-        document.querySelector('#bookmark-list > .item.back')?.click();
-        for (let i = 0; i < 20; i++) {
-          if (window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId) break;
-          await new Promise((r) => setTimeout(r, 80));
-        }
-
-        return {
-          groupId,
-          rootCounter,
-          groupVisible,
-          groupCounter,
-          renameActionFound: Boolean(renameAction),
-          renameActionDisabled: renameAction?.classList.contains('disabled') ?? null,
-          renameCalls,
-          renamedGroupVisible,
-          renamedGroupCounter,
-          backLabel,
-          tabVisible,
-          calls,
-          returnedToRoot: window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId,
-        };
-      })();
-      `,
-    );
-    must(
-      tabGroupsVirtualFolder.groupVisible &&
-        Number(tabGroupsVirtualFolder.rootCounter) >= 1 &&
-        tabGroupsVirtualFolder.groupCounter === '2' &&
-        tabGroupsVirtualFolder.renameActionFound &&
-        tabGroupsVirtualFolder.renameActionDisabled === false &&
-        tabGroupsVirtualFolder.renameCalls.prompt?.message === 'Edit folder name:' &&
-        tabGroupsVirtualFolder.renameCalls.prompt?.defaultValue === 'Codex Test Group' &&
-        tabGroupsVirtualFolder.renameCalls.bookmarkUpdate === null &&
-        tabGroupsVirtualFolder.renameCalls.tabGroupUpdate?.id === tabGroupsVirtualFolder.groupId &&
-        tabGroupsVirtualFolder.renameCalls.tabGroupUpdate?.changes?.title === 'Renamed Codex Test Group' &&
-        tabGroupsVirtualFolder.renamedGroupVisible &&
-        tabGroupsVirtualFolder.renamedGroupCounter === '2' &&
-        tabGroupsVirtualFolder.backLabel === 'Renamed Codex Test Group' &&
-        tabGroupsVirtualFolder.tabVisible &&
-        tabGroupsVirtualFolder.calls.update?.payload?.active === true &&
-        tabGroupsVirtualFolder.calls.closeCount > 0 &&
-        tabGroupsVirtualFolder.returnedToRoot,
-      `Tab Groups virtual folder did not navigate groups/tabs correctly: ${JSON.stringify(tabGroupsVirtualFolder)}`,
-    );
-
-    const unnamedTabGroupRenameDefault = await cdp.eval(
-      sessionId,
-      `
-      (async () => {
-        const tab = await chrome.tabs.create({ url: 'https://example.com/#codex-unnamed-tab-group', active: false });
-        const groupId = await chrome.tabs.group({ tabIds: [tab.id] });
-        await chrome.tabGroups.update(groupId, { title: '' });
-        await window.__popupTest.refreshCurrent();
-
-        const tabGroupsRow = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')].find((row) =>
-          row.querySelector('.item-title')?.textContent.trim() === 'Tab Groups'
-        );
-        if (!tabGroupsRow) {
-          return { groupId, foundTabGroupsRow: false };
-        }
-        tabGroupsRow.click();
-        for (let i = 0; i < 20; i++) {
-          const found = [...document.querySelectorAll('#bookmark-list > .item')]
-            .some((row) => row.dataset.nodeId === 'virtual:tab-group:' + groupId);
-          if (found) break;
-          await new Promise((r) => setTimeout(r, 80));
-        }
-
-        const unnamedRow = [...document.querySelectorAll('#bookmark-list > .item')].find((row) =>
-          row.dataset.nodeId === 'virtual:tab-group:' + groupId
-        );
-        const displayTitle = unnamedRow?.querySelector('.item-title')?.textContent.trim() || '';
-        if (!unnamedRow) {
-          return {
-            groupId,
-            foundTabGroupsRow: true,
-            foundUnnamedRow: false,
-            rows: [...document.querySelectorAll('#bookmark-list > .item')].map((row) => ({
-              nodeId: row.dataset.nodeId || '',
-              title: row.querySelector('.item-title')?.textContent.trim() || '',
-            })),
-          };
-        }
-        unnamedRow.dispatchEvent(new MouseEvent('contextmenu', {
-          bubbles: true,
-          cancelable: true,
-          clientX: 120,
-          clientY: 120,
-          button: 2,
-        }));
-        await new Promise((r) => setTimeout(r, 80));
-        const renameAction = [...document.querySelectorAll('#bookmark-list > .item.context-action')].find((row) =>
-          row.querySelector('.item-title')?.textContent.trim() === 'Rename...'
-        );
-
-        const origPrompt = window.prompt;
-        const promptCall = { message: null, defaultValue: null };
-        window.prompt = (message, defaultValue) => {
-          promptCall.message = message;
-          promptCall.defaultValue = defaultValue;
-          return null;
-        };
-        renameAction?.click();
-        await new Promise((r) => setTimeout(r, 80));
-        window.prompt = origPrompt;
-
-        document.querySelector('#bookmark-list > .item.back')?.click();
-        for (let i = 0; i < 20; i++) {
-          if (window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId) break;
-          await new Promise((r) => setTimeout(r, 80));
-        }
-
-        return {
-          groupId,
-          displayTitle,
-          renameActionFound: Boolean(renameAction),
-          renameActionDisabled: renameAction?.classList.contains('disabled') ?? null,
-          promptCall,
-          returnedToRoot: window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId,
-        };
-      })();
-      `,
-    );
-    must(
-      unnamedTabGroupRenameDefault.displayTitle === 'Unnamed Group' &&
-        unnamedTabGroupRenameDefault.renameActionFound &&
-        unnamedTabGroupRenameDefault.renameActionDisabled === false &&
-        unnamedTabGroupRenameDefault.promptCall.message === 'Edit folder name:' &&
-        unnamedTabGroupRenameDefault.promptCall.defaultValue === '' &&
-        unnamedTabGroupRenameDefault.returnedToRoot,
-      `Unnamed tab group rename prompt did not preserve empty title: ${JSON.stringify(unnamedTabGroupRenameDefault)}`,
     );
 
     const malformedNodesHandled = await cdp.eval(
@@ -894,10 +623,20 @@ async function main() {
       sessionId,
       `
       (async () => {
+        await window.__popupTest.refreshCurrent();
         const targetText = ${JSON.stringify(fixture.names.a)};
-        const row = [...document.querySelectorAll('.item')].find((el) =>
-          el.querySelector('.item-title')?.textContent.includes(targetText)
-        );
+        const row = document.querySelector(${JSON.stringify(`.item[data-node-id="${fixture.ids.a}"]`)})
+          || [...document.querySelectorAll('.item')].find((el) =>
+            el.querySelector('.item-title')?.textContent.includes(targetText)
+          );
+        if (!row) {
+          return {
+            normal: { updateUrl: null, createUrl: null, closeCount: 0 },
+            meta: { updateUrl: null, createUrl: null, closeCount: 0 },
+            foundRow: false,
+            titles: [...document.querySelectorAll('.item .item-title')].map((el) => el.textContent.trim()),
+          };
+        }
         const orig = {
           query: chrome.tabs.query,
           update: chrome.tabs.update,
@@ -949,9 +688,11 @@ async function main() {
       (async () => {
         await window.__popupTest.refreshCurrent();
         const targetText = ${JSON.stringify(fixture.names.a)};
-        const row = [...document.querySelectorAll('.item')].find((el) =>
-          el.querySelector('.item-title')?.textContent.includes(targetText)
-        );
+        const row = document.querySelector(${JSON.stringify(`.item[data-node-id="${fixture.ids.a}"]`)})
+          || [...document.querySelectorAll('.item')].find((el) =>
+            el.querySelector('.item-title')?.textContent.includes(targetText)
+          );
+        if (!row) return { opened: false, hasRow: false };
 
         row.dispatchEvent(new MouseEvent('contextmenu', {
           bubbles: true,
@@ -1023,9 +764,11 @@ async function main() {
       (async () => {
         await window.__popupTest.refreshCurrent();
         const targetText = ${JSON.stringify(fixture.names.a)};
-        const row = [...document.querySelectorAll('.item')].find((el) =>
-          el.querySelector('.item-title')?.textContent.includes(targetText)
-        );
+        const row = document.querySelector(${JSON.stringify(`.item[data-node-id="${fixture.ids.a}"]`)})
+          || [...document.querySelectorAll('.item')].find((el) =>
+            el.querySelector('.item-title')?.textContent.includes(targetText)
+          );
+        if (!row) return { opened: false, hasRow: false };
 
         row.dispatchEvent(new MouseEvent('contextmenu', {
           bubbles: true,
@@ -1076,15 +819,21 @@ async function main() {
       `Open in Bookmarks Manager did not open Bookmark Manager for the selected node: ${JSON.stringify(openBookmarksManager)}`,
     );
 
-    const openAllInTabGroup = await cdp.eval(
+    const tabGroupActionsRemoved = await cdp.eval(
       sessionId,
       `
       (async () => {
         await window.__popupTest.refreshCurrent();
         const folderText = ${JSON.stringify(fixture.names.folder)};
-        const folderRow = [...document.querySelectorAll('.item')].find((el) =>
+        const folderRow = [...document.querySelectorAll('.item.folder:not(.virtual-root)')].find((el) =>
           el.querySelector('.item-title')?.textContent.includes(folderText)
-        );
+        ) || document.querySelector('.item.folder:not(.virtual-root)');
+        if (!folderRow) {
+          return {
+            foundFolder: false,
+            titles: [...document.querySelectorAll('.item .item-title')].map((el) => el.textContent.trim()),
+          };
+        }
 
         folderRow.dispatchEvent(new MouseEvent('contextmenu', {
           bubbles: true,
@@ -1096,82 +845,39 @@ async function main() {
 
         const actionLabels = [...document.querySelectorAll('#bookmark-list > .item.context-action .item-title')]
           .map((el) => el.textContent.trim());
-        const groupBtn = [...document.querySelectorAll('#bookmark-list > .item.context-action')].find((el) =>
-          el.textContent.trim() === 'Open All in New Tab Group'
-        );
-        if (!groupBtn) return { ok: false, actionLabels };
-
-        const orig = {
-          create: chrome.tabs.create,
-          group: chrome.tabs.group,
-          update: chrome.tabs.update,
-          tabGroupUpdate: chrome.tabGroups.update,
-          close: window.close,
-        };
-        const calls = { created: [], grouped: null, groupUpdate: null, activated: null, closeCount: 0 };
-        chrome.tabs.create = async (payload) => {
-          const tab = { id: 700 + calls.created.length, ...payload };
-          calls.created.push(payload);
-          return tab;
-        };
-        chrome.tabs.group = async (payload) => {
-          calls.grouped = payload;
-          return 321;
-        };
-        chrome.tabGroups.update = async (id, payload) => {
-          calls.groupUpdate = { id, payload };
-          return {};
-        };
-        chrome.tabs.update = async (id, payload) => {
-          calls.activated = { id, payload };
-          return {};
-        };
-        window.close = () => { calls.closeCount += 1; };
-
-        groupBtn.click();
-        await new Promise((r) => setTimeout(r, 120));
-
-        chrome.tabs.create = orig.create;
-        chrome.tabs.group = orig.group;
-        chrome.tabs.update = orig.update;
-        chrome.tabGroups.update = orig.tabGroupUpdate;
-        window.close = orig.close;
 
         return {
-          ok: true,
+          foundFolder: true,
           actionLabels,
-          calls,
-          contextOpen: window.__popupTest.getState().contextOpen,
         };
       })();
       `,
     );
     must(
-      openAllInTabGroup.ok &&
-        openAllInTabGroup.actionLabels.includes('Open All in New Tab Group') &&
-        openAllInTabGroup.actionLabels.includes('Rename...') &&
-        !openAllInTabGroup.actionLabels.includes('Edit...') &&
-        openAllInTabGroup.calls.created.length === 1 &&
-        openAllInTabGroup.calls.created[0].url === 'https://example.com/child' &&
-        openAllInTabGroup.calls.created[0].active === false &&
-        JSON.stringify(openAllInTabGroup.calls.grouped?.tabIds) === JSON.stringify([700]) &&
-        openAllInTabGroup.calls.groupUpdate?.id === 321 &&
-        openAllInTabGroup.calls.groupUpdate?.payload?.title === fixture.names.folder &&
-        openAllInTabGroup.calls.activated?.id === 700 &&
-        openAllInTabGroup.calls.activated?.payload?.active === true &&
-        openAllInTabGroup.calls.closeCount > 0 &&
-        !openAllInTabGroup.contextOpen,
-      `Open All in New Tab Group behavior mismatch: ${JSON.stringify(openAllInTabGroup)}`,
+      tabGroupActionsRemoved.foundFolder &&
+        !tabGroupActionsRemoved.actionLabels.includes('Open All in New Tab Group') &&
+        tabGroupActionsRemoved.actionLabels.includes('Rename...') &&
+        !tabGroupActionsRemoved.actionLabels.includes('Edit...'),
+      `Tab group actions were still present: ${JSON.stringify(tabGroupActionsRemoved)}`,
     );
 
     const deletedViaContext = await cdp.eval(
       sessionId,
       `
       (async () => {
+        await window.__popupTest.refreshCurrent();
         const targetText = ${JSON.stringify(fixture.names.b)};
-        const row = [...document.querySelectorAll('.item')].find((el) =>
-          el.querySelector('.item-title')?.textContent.includes(targetText)
-        );
+        const row = document.querySelector(${JSON.stringify(`.item[data-node-id="${fixture.ids.b}"]`)})
+          || [...document.querySelectorAll('.item')].find((el) =>
+            el.querySelector('.item-title')?.textContent.includes(targetText)
+          );
+        if (!row) {
+          return {
+            removed: false,
+            hasRow: false,
+            titles: [...document.querySelectorAll('.item .item-title')].map((el) => el.textContent.trim()),
+          };
+        }
 
         row.dispatchEvent(new MouseEvent('contextmenu', {
           bubbles: true,
@@ -1271,7 +977,6 @@ async function main() {
         'Add Folder...',
         'Open in Bookmarks Manager',
         'Show Apps Shortcut',
-        'Show Tab Groups',
         'Show Other Bookmarks',
         'Show Mobile Bookmarks',
       ]),

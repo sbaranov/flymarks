@@ -5,13 +5,10 @@ const SNAPSHOT_KEY = 'bookmarksBarSnapshotV1';
 const SNAPSHOT_LOCAL_KEY = 'bookmarksBarSnapshotLocalV1';
 const SETTINGS_KEY = 'bookmarksBarSettingsV1';
 const VIRTUAL_APPS_ID = 'virtual:apps';
-const VIRTUAL_TAB_GROUPS_ID = 'virtual:tab-groups';
-const VIRTUAL_TAB_GROUP_PREFIX = 'virtual:tab-group:';
 const DRAG_FOLDER_ENTER_DELAY = 550;
 const DROP_INTO_FOLDER_EDGE_RATIO = 0.25;
 const DEFAULT_SETTINGS = {
   showAppsShortcut: true,
-  showTabGroups: true,
   showOtherBookmarks: true,
   showMobileBookmarks: true,
 };
@@ -45,16 +42,13 @@ const api = {
   createTab: (payload) => chrome.tabs.create(payload),
   updateTab: (id, payload) => chrome.tabs.update(id, payload),
   queryTabs: (payload) => chrome.tabs.query(payload),
-  groupTabs: (payload) => chrome.tabs.group(payload),
-  queryTabGroups: (payload) => chrome.tabGroups.query(payload),
-  updateTabGroup: (id, payload) => chrome.tabGroups.update(id, payload),
   createWindow: (payload) => chrome.windows.create(payload),
   storageGet: (key) => chrome.storage.local.get(key),
   storageSet: (obj) => chrome.storage.local.set(obj),
 };
 
 function isBookmark(node) {
-  return Boolean(node?.virtualType === 'tab' && node.tabId) || (typeof node?.url === 'string' && node.url.length > 0);
+  return typeof node?.url === 'string' && node.url.length > 0;
 }
 
 function isFolder(node) {
@@ -151,15 +145,6 @@ async function getVirtualRootFolders() {
   return [
     ...(state.settings.showAppsShortcut
       ? [{ id: VIRTUAL_APPS_ID, title: 'Apps', index: -2, virtualType: 'apps' }]
-      : []),
-    ...(state.settings.showTabGroups
-      ? [{
-        id: VIRTUAL_TAB_GROUPS_ID,
-        title: 'Tab Groups',
-        index: -1,
-        virtualType: 'tab-groups-root',
-        children: await api.queryTabGroups({}),
-      }]
       : []),
     ...rootFolders,
   ];
@@ -259,62 +244,7 @@ async function enterVirtualFolder(folderId, replacePath = false) {
   await renderList(folder.children || []);
 }
 
-async function getVirtualFolder(folderId) {
-  if (folderId === VIRTUAL_TAB_GROUPS_ID) {
-    const groups = await api.queryTabGroups({});
-    const groupNodes = sortedByIndex(await Promise.all(groups.map(async (group, index) => {
-      const tabs = await api.queryTabs({ groupId: group.id });
-      return {
-        id: `${VIRTUAL_TAB_GROUP_PREFIX}${group.id}`,
-        title: group.title || 'Unnamed Group',
-        rawTitle: group.title || '',
-        index,
-        parentId: VIRTUAL_TAB_GROUPS_ID,
-        virtualType: 'tab-group',
-        tabGroupId: group.id,
-        color: group.color,
-        children: tabs.map((tab) => ({ id: `virtual:tab:${tab.id}` })),
-      };
-    })));
-    return {
-      id: VIRTUAL_TAB_GROUPS_ID,
-      title: 'Tab Groups',
-      parentId: state.rootFolderId,
-      virtualType: 'tab-groups-root',
-      children: groupNodes,
-    };
-  }
-
-  if (folderId.startsWith(VIRTUAL_TAB_GROUP_PREFIX)) {
-    const groupId = Number(folderId.slice(VIRTUAL_TAB_GROUP_PREFIX.length));
-    if (!Number.isFinite(groupId)) return null;
-    const [group, tabs] = await Promise.all([
-      api.queryTabGroups({}).then((groups) => groups.find((g) => g.id === groupId)),
-      api.queryTabs({ groupId }),
-    ]);
-    const children = sortedByIndex(tabs.map((tab, index) => ({
-      id: `virtual:tab:${tab.id}`,
-      title: tab.title || tab.url || tab.pendingUrl || `Tab ${index + 1}`,
-      url: tab.url || tab.pendingUrl || '',
-      index: tab.index,
-      parentId: folderId,
-      virtualType: 'tab',
-      tabId: tab.id,
-      windowId: tab.windowId,
-      favIconUrl: tab.favIconUrl,
-    })));
-    return {
-      id: folderId,
-      title: group?.title || 'Unnamed Group',
-      rawTitle: group?.title || '',
-      parentId: VIRTUAL_TAB_GROUPS_ID,
-      virtualType: 'tab-group',
-      tabGroupId: groupId,
-      color: group?.color,
-      children,
-    };
-  }
-
+async function getVirtualFolder(_folderId) {
   return null;
 }
 
@@ -395,13 +325,6 @@ function createBackItem() {
 }
 
 function getEmptyMessage() {
-  const folder = state.nodesById.get(state.currentFolderId);
-  if (folder?.virtualType === 'tab-groups-root') {
-    return 'No tab groups';
-  }
-  if (folder?.virtualType === 'tab-group') {
-    return 'No tabs in this group';
-  }
   return 'No bookmarks in this folder';
 }
 
@@ -454,12 +377,6 @@ async function renderList(children, opts = {}) {
 
 async function openBookmarkWithModifiers(node, ev = null) {
   if (!isBookmark(node)) return;
-
-  if (node.virtualType === 'tab' && node.tabId) {
-    await api.updateTab(node.tabId, { active: true });
-    window.close();
-    return;
-  }
 
   const modifierOpenTab = Boolean(ev && (ev.metaKey || ev.ctrlKey || ev.button === 1));
   const openWindow = Boolean(ev && ev.shiftKey);
@@ -724,20 +641,16 @@ function createItem(node, source = 'main') {
     item.querySelector('.item-meta').textContent = node.virtualType === 'apps' ? '' : String(count);
   } else {
     item.querySelector('.item-meta').textContent = '';
-    if (node.url) {
-      const favicon = document.createElement('img');
-      favicon.className = 'favicon';
-      favicon.src = getFaviconUrl(node.url);
-      favicon.alt = '';
-      favicon.decoding = 'async';
-      favicon.addEventListener('error', () => {
-        favicon.remove();
-        iconEl.classList.add('fallback');
-      }, { once: true });
-      iconEl.append(favicon);
-    } else {
+    const favicon = document.createElement('img');
+    favicon.className = 'favicon';
+    favicon.src = getFaviconUrl(node.url);
+    favicon.alt = '';
+    favicon.decoding = 'async';
+    favicon.addEventListener('error', () => {
+      favicon.remove();
       iconEl.classList.add('fallback');
-    }
+    }, { once: true });
+    iconEl.append(favicon);
   }
 
   item.addEventListener('click', async (ev) => {
@@ -914,7 +827,7 @@ function createContextAction(label, action, opts = {}) {
   return item;
 }
 
-async function openAllInFolder(folderId, mode = 'tab', folderTitle = '') {
+async function openAllInFolder(folderId, mode = 'tab') {
   const children = sortedByIndex(await api.getChildren(folderId));
   const urls = children.filter((c) => c.url).map((c) => c.url);
   if (!urls.length) return;
@@ -927,19 +840,6 @@ async function openAllInFolder(folderId, mode = 'tab', folderTitle = '') {
     await api.createWindow({ url: urls, incognito: true });
     return;
   }
-  if (mode === 'group') {
-    const tabs = await Promise.all(urls.map((url) => api.createTab({ url, active: false })));
-    const tabIds = tabs.map((tab) => tab.id).filter(Boolean);
-    if (!tabIds.length) return;
-
-    const groupId = await api.groupTabs({ tabIds });
-    if (folderTitle) {
-      await api.updateTabGroup(groupId, { title: folderTitle });
-    }
-    await api.updateTab(tabIds[0], { active: true });
-    return;
-  }
-
   const [first, ...rest] = urls;
   const [activeTab] = await api.queryTabs({ active: true, lastFocusedWindow: true });
   if (activeTab?.id) {
@@ -975,7 +875,6 @@ function openContextMenu(_x, _y, node, opts = {}) {
   const folder = isFolder(node);
   const virtualContext = Boolean(opts.virtual || isVirtualNode(node) || node.virtualType);
   const syntheticVirtualContext = virtualContext && isVirtualFolderId(node.id);
-  const tabGroupContext = node.virtualType === 'tab-group' && Number.isFinite(node.tabGroupId);
   const addEnabled = !virtualContext || (folder && !isVirtualFolderId(node.id));
   listEl.append(createContextBackItem(node), createSeparator());
 
@@ -988,20 +887,14 @@ function openContextMenu(_x, _y, node, opts = {}) {
     listEl.append(createContextAction('Open All', () => openAllInFolder(node.id, 'tab'), { refresh: false, closePopup: true, disabled: syntheticVirtualContext }));
     listEl.append(createContextAction('Open All in New Window', () => openAllInFolder(node.id, 'window'), { refresh: false, disabled: syntheticVirtualContext }));
     listEl.append(createContextAction('Open All in Incognito Window', () => openAllInFolder(node.id, 'incognito'), { refresh: false, disabled: syntheticVirtualContext }));
-    listEl.append(createContextAction('Open All in New Tab Group', () => openAllInFolder(node.id, 'group', node.title || 'Bookmarks'), { refresh: false, closePopup: true, disabled: syntheticVirtualContext }));
     listEl.append(separator());
   }
 
   listEl.append(createContextAction('Rename...', async () => {
-    const defaultTitle = tabGroupContext ? (node.rawTitle || '') : (node.title || '');
-    const title = prompt(folder ? 'Edit folder name:' : 'Edit bookmark name:', defaultTitle);
+    const title = prompt(folder ? 'Edit folder name:' : 'Edit bookmark name:', node.title || '');
     if (title === null) return;
-    if (tabGroupContext) {
-      await api.updateTabGroup(node.tabGroupId, { title });
-      return;
-    }
     await api.update(node.id, { title });
-  }, { disabled: virtualContext && !tabGroupContext }));
+  }, { disabled: virtualContext }));
   listEl.append(separator());
 
   listEl.append(createContextAction('Cut', async () => {
@@ -1068,9 +961,6 @@ function openContextMenu(_x, _y, node, opts = {}) {
   listEl.append(createContextAction('Show Apps Shortcut', async () => {
     await setSetting('showAppsShortcut', !state.settings.showAppsShortcut);
   }, { checked: state.settings.showAppsShortcut }));
-  listEl.append(createContextAction('Show Tab Groups', async () => {
-    await setSetting('showTabGroups', !state.settings.showTabGroups);
-  }, { checked: state.settings.showTabGroups }));
   listEl.append(createContextAction('Show Other Bookmarks', async () => {
     await setSetting('showOtherBookmarks', !state.settings.showOtherBookmarks);
   }, { checked: state.settings.showOtherBookmarks }));
