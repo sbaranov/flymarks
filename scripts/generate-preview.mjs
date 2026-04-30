@@ -17,8 +17,6 @@ const capture = {
 };
 
 const rows = [
-  { type: 'apps', title: 'Apps' },
-  { type: 'tab-groups', title: 'Tab Groups', count: 2 },
   { type: 'other', title: 'Other Bookmarks', count: 8 },
   { type: 'mobile', title: 'Mobile Bookmarks', count: 4 },
   { sep: true },
@@ -39,6 +37,8 @@ const rows = [
     favicon: 'https://cdn.sstatic.net/Sites/stackoverflow/Img/apple-touch-icon.png?v=c78bd457575a',
   },
   { type: 'bookmark', title: 'Google Maps', favicon: 'https://www.google.com/s2/favicons?domain=maps.google.com&sz=64' },
+  { type: 'bookmark', title: 'MDN Web Docs', favicon: 'https://www.google.com/s2/favicons?domain=developer.mozilla.org&sz=64' },
+  { type: 'bookmark', title: 'Figma', favicon: 'https://static.figma.com/app/icon/1/favicon.svg' },
 ];
 
 function sleep(ms) {
@@ -234,30 +234,6 @@ function renderHtml() {
     .favicon-tile .favicon {
       width: 12px;
       height: 12px;
-    }
-
-    .apps .glyph {
-      width: 3px;
-      height: 3px;
-      border-radius: 1px;
-      background: currentColor;
-      box-shadow:
-        -5px -5px 0 currentColor,
-        0 -5px 0 currentColor,
-        5px -5px 0 currentColor,
-        -5px 0 0 currentColor,
-        5px 0 0 currentColor,
-        -5px 5px 0 currentColor,
-        0 5px 0 currentColor,
-        5px 5px 0 currentColor;
-    }
-
-    .tab-groups .glyph {
-      width: 14px;
-      height: 14px;
-      background: currentColor;
-      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'%3E%3Crect x='2.2' y='2.2' width='4.8' height='4.8' rx='0.7'/%3E%3Crect x='9' y='2.2' width='4.8' height='4.8' rx='0.7'/%3E%3Crect x='2.2' y='9' width='4.8' height='4.8' rx='0.7'/%3E%3Crect x='9' y='9' width='4.8' height='4.8' rx='0.7'/%3E%3C/g%3E%3C/svg%3E") center / 16px 16px no-repeat;
-      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'%3E%3Crect x='2.2' y='2.2' width='4.8' height='4.8' rx='0.7'/%3E%3Crect x='9' y='2.2' width='4.8' height='4.8' rx='0.7'/%3E%3Crect x='2.2' y='9' width='4.8' height='4.8' rx='0.7'/%3E%3Crect x='9' y='9' width='4.8' height='4.8' rx='0.7'/%3E%3C/g%3E%3C/svg%3E") center / 16px 16px no-repeat;
     }
 
     .other .glyph,
