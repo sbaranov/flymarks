@@ -373,6 +373,7 @@ async function main() {
           label: action.querySelector('.item-title')?.textContent.trim(),
           disabled: action.classList.contains('disabled'),
         }));
+        const byLabel = Object.fromEntries(actions.map((action) => [action.label, action]));
         const openOptionPatterns = [
           /^Open All \\((\\d+)\\)$/,
           /^Open All \\((\\d+)\\) in New Window$/,
@@ -390,14 +391,87 @@ async function main() {
           title: row?.querySelector('.item-title')?.textContent.trim() || '',
           actions,
           openOptionsMatchCount,
+          protectedActionsDisabled: ['Rename...', 'Cut', 'Copy', 'Delete'].every((label) =>
+            byLabel[label]?.disabled === true
+          ),
+          addActionsEnabled: ['Add Page...', 'Add Folder...'].every((label) =>
+            byLabel[label]?.disabled === false
+          ),
         };
       })();
       `,
     );
     must(
       realVirtualFolderOpenOptions.foundRow &&
-        realVirtualFolderOpenOptions.openOptionsMatchCount,
+        realVirtualFolderOpenOptions.openOptionsMatchCount &&
+        realVirtualFolderOpenOptions.protectedActionsDisabled &&
+        realVirtualFolderOpenOptions.addActionsEnabled,
       `Other/Mobile Bookmarks virtual folder open options did not match their counters: ${JSON.stringify(realVirtualFolderOpenOptions)}`,
+    );
+
+    const openedSpecialFolderProtectedActions = await cdp.eval(
+      sessionId,
+      `
+      (async () => {
+        await window.__popupTest.refreshCurrent();
+        const row = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')].find((el) =>
+          ['Other Bookmarks', 'Mobile Bookmarks'].includes(el.querySelector('.item-title')?.textContent.trim())
+        );
+        const title = row?.querySelector('.item-title')?.textContent.trim() || '';
+        row?.click();
+        for (let i = 0; i < 20; i++) {
+          const state = window.__popupTest.getState();
+          if (state.currentFolderId !== state.rootFolderId) break;
+          await new Promise((r) => setTimeout(r, 80));
+        }
+
+        const backRow = document.querySelector('#bookmark-list > .item.back');
+        backRow?.dispatchEvent(new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: 120,
+          clientY: 80,
+          button: 2,
+        }));
+        const actions = [...document.querySelectorAll('#bookmark-list > .item.context-action')].map((action) => ({
+          label: action.querySelector('.item-title')?.textContent.trim(),
+          disabled: action.classList.contains('disabled'),
+        }));
+        const byLabel = Object.fromEntries(actions.map((action) => [action.label, action]));
+        const header = document.querySelector('#bookmark-list > .item.back .item-title')?.textContent.trim() || '';
+        document.querySelector('#bookmark-list > .item.back')?.click();
+        await new Promise((r) => setTimeout(r, 80));
+        document.querySelector('#bookmark-list > .item.back')?.click();
+        for (let i = 0; i < 20; i++) {
+          if (window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId) break;
+          await new Promise((r) => setTimeout(r, 80));
+        }
+
+        return {
+          foundRow: Boolean(row),
+          foundBackRow: Boolean(backRow),
+          title,
+          header,
+          actions,
+          protectedActionsDisabled: ['Rename...', 'Cut', 'Copy', 'Delete'].every((label) =>
+            byLabel[label]?.disabled === true
+          ),
+          addActionsEnabled: ['Add Page...', 'Add Folder...'].every((label) =>
+            byLabel[label]?.disabled === false
+          ),
+          returnedToRoot: window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId,
+        };
+      })();
+      `,
+    );
+    must(
+      openedSpecialFolderProtectedActions.foundRow &&
+        openedSpecialFolderProtectedActions.foundBackRow &&
+        openedSpecialFolderProtectedActions.header === openedSpecialFolderProtectedActions.title &&
+        openedSpecialFolderProtectedActions.protectedActionsDisabled &&
+        openedSpecialFolderProtectedActions.addActionsEnabled &&
+        openedSpecialFolderProtectedActions.returnedToRoot,
+      `Opened special folder context menu did not protect root actions: ${JSON.stringify(openedSpecialFolderProtectedActions)}`,
     );
 
     const virtualSettingToggles = await cdp.eval(

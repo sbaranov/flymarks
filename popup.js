@@ -158,6 +158,15 @@ function isRootView() {
   return Boolean(state.rootFolderId) && state.currentFolderId === state.rootFolderId;
 }
 
+function isSpecialRootFolder(node) {
+  if (!isFolder(node)) return false;
+  return node.id === state.rootFolderId ||
+    node.id === '2' ||
+    node.id === '3' ||
+    /^other bookmarks$/i.test(node.title || '') ||
+    /^mobile bookmarks$/i.test(node.title || '');
+}
+
 function renderCachedFirstPaintSync() {
   const cached = loadSnapshotSync();
   if (!cached || !cached.id) return false;
@@ -896,6 +905,7 @@ function openContextMenu(_x, _y, node, opts = {}) {
   const folder = isFolder(node);
   const virtualContext = Boolean(opts.virtual || isVirtualNode(node) || node.virtualType);
   const syntheticVirtualContext = virtualContext && isVirtualFolderId(node.id);
+  const protectedFolder = isSpecialRootFolder(node);
   const addEnabled = !virtualContext || (folder && !isVirtualFolderId(node.id));
   const appendBookmarksManagerAction = () => {
     listEl.append(createContextAction(syntheticVirtualContext ? 'Open Bookmarks Manager' : 'Open in Bookmarks Manager', async () => {
@@ -922,7 +932,7 @@ function openContextMenu(_x, _y, node, opts = {}) {
     const title = prompt(folder ? 'Edit folder name:' : 'Edit bookmark name:', node.title || '');
     if (title === null) return;
     await api.update(node.id, { title });
-  }, { disabled: virtualContext }));
+  }, { disabled: virtualContext || protectedFolder }));
   if (!syntheticVirtualContext) {
     appendBookmarksManagerAction();
   }
@@ -930,10 +940,10 @@ function openContextMenu(_x, _y, node, opts = {}) {
 
   listEl.append(createContextAction('Cut', async () => {
     state.clipboard = { id: node.id, mode: 'cut' };
-  }, { refresh: false, disabled: virtualContext }));
+  }, { refresh: false, disabled: virtualContext || protectedFolder }));
   listEl.append(createContextAction('Copy', async () => {
     state.clipboard = { id: node.id, mode: 'copy' };
-  }, { refresh: false, disabled: virtualContext }));
+  }, { refresh: false, disabled: virtualContext || protectedFolder }));
 
   const canPaste = Boolean(state.clipboard);
   listEl.append(createContextAction('Paste', async () => {
@@ -964,7 +974,7 @@ function openContextMenu(_x, _y, node, opts = {}) {
         ? `Delete folder "${title}" and all of its contents?`
         : `Delete bookmark "${title}"?`;
     },
-    disabled: virtualContext,
+    disabled: virtualContext || protectedFolder,
   }));
   listEl.append(separator());
 
