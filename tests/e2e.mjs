@@ -374,27 +374,30 @@ async function main() {
           disabled: action.classList.contains('disabled'),
         }));
         const openOptionPatterns = [
-          /^Open All \\(\\d+\\)$/,
-          /^Open All \\(\\d+\\) in New Window$/,
-          /^Open All \\(\\d+\\) in Incognito Window$/,
+          /^Open All \\((\\d+)\\)$/,
+          /^Open All \\((\\d+)\\) in New Window$/,
+          /^Open All \\((\\d+)\\) in Incognito Window$/,
         ];
-        const openOptionsEnabled = openOptionPatterns.every((pattern) =>
-          actions.some((action) => pattern.test(action.label) && action.disabled === false)
+        const openOptionsMatchCount = openOptionPatterns.every((pattern) =>
+          actions.some((action) => {
+            const match = action.label.match(pattern);
+            return match && action.disabled === (Number(match[1]) === 0);
+          })
         );
 
         return {
           foundRow: Boolean(row),
           title: row?.querySelector('.item-title')?.textContent.trim() || '',
           actions,
-          openOptionsEnabled,
+          openOptionsMatchCount,
         };
       })();
       `,
     );
     must(
       realVirtualFolderOpenOptions.foundRow &&
-        realVirtualFolderOpenOptions.openOptionsEnabled,
-      `Other/Mobile Bookmarks virtual folder open options were disabled: ${JSON.stringify(realVirtualFolderOpenOptions)}`,
+        realVirtualFolderOpenOptions.openOptionsMatchCount,
+      `Other/Mobile Bookmarks virtual folder open options did not match their counters: ${JSON.stringify(realVirtualFolderOpenOptions)}`,
     );
 
     const virtualSettingToggles = await cdp.eval(
@@ -795,6 +798,58 @@ async function main() {
       `Tab group actions were still present: ${JSON.stringify(tabGroupActionsRemoved)}`,
     );
 
+    const emptyFolderOpenAllDisabled = await cdp.eval(
+      sessionId,
+      `
+      (async () => {
+        await window.__popupTest.refreshCurrent();
+        const folderRow = document.querySelector(${JSON.stringify(`.item[data-node-id="${fixture.ids.emptyFolder}"]`)});
+        if (!folderRow) {
+          return {
+            foundFolder: false,
+            titles: [...document.querySelectorAll('.item .item-title')].map((el) => el.textContent.trim()),
+          };
+        }
+
+        folderRow.dispatchEvent(new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: 120,
+          clientY: 120,
+          button: 2,
+        }));
+
+        const actions = [...document.querySelectorAll('#bookmark-list > .item.context-action')].map((action) => ({
+          label: action.querySelector('.item-title')?.textContent.trim(),
+          disabled: action.classList.contains('disabled'),
+          ariaDisabled: action.getAttribute('aria-disabled'),
+        }));
+        const expectedLabels = [
+          'Open All (0)',
+          'Open All (0) in New Window',
+          'Open All (0) in Incognito Window',
+        ];
+
+        return {
+          foundFolder: true,
+          actions,
+          openAllDisabled: expectedLabels.every((label) =>
+            actions.some((action) =>
+              action.label === label &&
+              action.disabled &&
+              action.ariaDisabled === 'true'
+            )
+          ),
+        };
+      })();
+      `,
+    );
+    must(
+      emptyFolderOpenAllDisabled.foundFolder &&
+        emptyFolderOpenAllDisabled.openAllDisabled,
+      `Empty folder Open All options were not disabled: ${JSON.stringify(emptyFolderOpenAllDisabled)}`,
+    );
+
     const deletedViaContext = await cdp.eval(
       sessionId,
       `
@@ -1120,6 +1175,89 @@ async function main() {
     must(
       clickFolderNavigation.backLabel === fixture.names.folder,
       `Back row did not show clicked folder title: ${JSON.stringify(clickFolderNavigation)}`,
+    );
+
+    const currentFolderContextSurfaces = await cdp.eval(
+      sessionId,
+      `
+      (async () => {
+        await window.__popupTest.refreshCurrent();
+        await window.__popupTest.clickOpenFolderById(${JSON.stringify(fixture.ids.folder)});
+        for (let i = 0; i < 20; i++) {
+          if (window.__popupTest.getState().currentFolderId === ${JSON.stringify(fixture.ids.folder)}) break;
+          await new Promise((r) => setTimeout(r, 80));
+        }
+
+        const backRow = document.querySelector('#bookmark-list > .item.back');
+        backRow?.dispatchEvent(new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: 120,
+          clientY: 80,
+          button: 2,
+        }));
+        const backMenuLabels = [...document.querySelectorAll('#bookmark-list > .item.context-action .item-title')]
+          .map((el) => el.textContent.trim());
+        const backMenuHeader = document.querySelector('#bookmark-list > .item.back .item-title')?.textContent.trim() || '';
+
+        document.querySelector('#bookmark-list > .item.back')?.click();
+        await new Promise((r) => setTimeout(r, 80));
+        document.querySelector('#bookmark-list > .item.back')?.click();
+        for (let i = 0; i < 20; i++) {
+          if (window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId) break;
+          await new Promise((r) => setTimeout(r, 80));
+        }
+
+        await window.__popupTest.clickOpenFolderById(${JSON.stringify(fixture.ids.emptyFolder)});
+        for (let i = 0; i < 20; i++) {
+          if (window.__popupTest.getState().currentFolderId === ${JSON.stringify(fixture.ids.emptyFolder)}) break;
+          await new Promise((r) => setTimeout(r, 80));
+        }
+        const emptyRow = document.querySelector('#bookmark-list > .empty');
+        emptyRow?.dispatchEvent(new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: 120,
+          clientY: 160,
+          button: 2,
+        }));
+        const emptyMenuActions = [...document.querySelectorAll('#bookmark-list > .item.context-action')].map((action) => ({
+          label: action.querySelector('.item-title')?.textContent.trim(),
+          disabled: action.classList.contains('disabled'),
+        }));
+        const emptyMenuHeader = document.querySelector('#bookmark-list > .item.back .item-title')?.textContent.trim() || '';
+
+        document.querySelector('#bookmark-list > .item.back')?.click();
+        await new Promise((r) => setTimeout(r, 80));
+        document.querySelector('#bookmark-list > .item.back')?.click();
+        for (let i = 0; i < 20; i++) {
+          if (window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId) break;
+          await new Promise((r) => setTimeout(r, 80));
+        }
+
+        return {
+          foundBackRow: Boolean(backRow),
+          backMenuHeader,
+          backMenuLabels,
+          foundEmptyRow: Boolean(emptyRow),
+          emptyMenuHeader,
+          emptyMenuActions,
+          returnedToRoot: window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId,
+        };
+      })();
+      `,
+    );
+    must(
+      currentFolderContextSurfaces.foundBackRow &&
+        currentFolderContextSurfaces.backMenuHeader === fixture.names.folder &&
+        currentFolderContextSurfaces.backMenuLabels.includes('Open All (1)') &&
+        currentFolderContextSurfaces.backMenuLabels.includes('Rename...') &&
+        currentFolderContextSurfaces.foundEmptyRow &&
+        currentFolderContextSurfaces.emptyMenuHeader === fixture.names.emptyFolder &&
+        currentFolderContextSurfaces.emptyMenuActions.some((action) => action.label === 'Open All (0)' && action.disabled) &&
+        currentFolderContextSurfaces.emptyMenuActions.some((action) => action.label === 'Rename...' && !action.disabled) &&
+        currentFolderContextSurfaces.returnedToRoot,
+      `Current folder context menu did not open from Back/empty rows: ${JSON.stringify(currentFolderContextSurfaces)}`,
     );
 
     const directDropIntoFolder = await cdp.eval(

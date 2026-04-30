@@ -274,6 +274,15 @@ function createSeparator() {
   return sep;
 }
 
+function openCurrentFolderContextMenu(ev) {
+  ev.preventDefault();
+  ev.stopPropagation();
+  const folder = state.nodesById.get(state.currentFolderId);
+  if (folder) {
+    openContextMenu(ev.clientX, ev.clientY, folder);
+  }
+}
+
 function createBackItem() {
   const item = itemTemplate.content.firstElementChild.cloneNode(true);
   item.classList.add('back');
@@ -288,6 +297,7 @@ function createBackItem() {
     hideContextMenu();
     await goBack();
   });
+  item.addEventListener('contextmenu', openCurrentFolderContextMenu);
   item.addEventListener('dragover', (ev) => {
     if (!state.drag || !parentFolderId || isVirtualFolderId(state.currentFolderId)) return;
     ev.preventDefault();
@@ -364,6 +374,7 @@ async function renderList(children, opts = {}) {
     const empty = document.createElement('div');
     empty.className = 'empty';
     empty.textContent = getEmptyMessage();
+    empty.addEventListener('contextmenu', openCurrentFolderContextMenu);
     listEl.append(empty);
     return;
   }
@@ -900,9 +911,10 @@ function openContextMenu(_x, _y, node, opts = {}) {
     listEl.append(createContextAction('Open in Incognito Window', () => api.createWindow({ url: node.url, incognito: true }), { refresh: false }));
     listEl.append(separator());
   } else {
-    listEl.append(createContextAction(getOpenAllLabel(node), () => openAllInFolder(node.id, 'tab'), { refresh: false, closePopup: true, disabled: syntheticVirtualContext }));
-    listEl.append(createContextAction(getOpenAllLabel(node, ' in New Window'), () => openAllInFolder(node.id, 'window'), { refresh: false, disabled: syntheticVirtualContext }));
-    listEl.append(createContextAction(getOpenAllLabel(node, ' in Incognito Window'), () => openAllInFolder(node.id, 'incognito'), { refresh: false, disabled: syntheticVirtualContext }));
+    const openAllDisabled = syntheticVirtualContext || getOpenAllCount(node) === 0;
+    listEl.append(createContextAction(getOpenAllLabel(node), () => openAllInFolder(node.id, 'tab'), { refresh: false, closePopup: true, disabled: openAllDisabled }));
+    listEl.append(createContextAction(getOpenAllLabel(node, ' in New Window'), () => openAllInFolder(node.id, 'window'), { refresh: false, disabled: openAllDisabled }));
+    listEl.append(createContextAction(getOpenAllLabel(node, ' in Incognito Window'), () => openAllInFolder(node.id, 'incognito'), { refresh: false, disabled: openAllDisabled }));
     listEl.append(separator());
   }
 
@@ -1038,11 +1050,7 @@ async function goBack() {
 
 listEl.addEventListener('contextmenu', (ev) => {
   if (ev.target === listEl) {
-    ev.preventDefault();
-    const folder = state.nodesById.get(state.currentFolderId);
-    if (folder) {
-      openContextMenu(ev.clientX, ev.clientY, folder);
-    }
+    openCurrentFolderContextMenu(ev);
   }
 });
 
