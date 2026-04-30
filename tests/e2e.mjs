@@ -553,13 +553,17 @@ async function main() {
           row.querySelector('.item-title')?.textContent.trim()
         );
         const emptyText = document.querySelector('#bookmark-list > .empty')?.textContent.trim() || '';
+        const children = [...document.querySelector('#bookmark-list').children];
+        const emptyIndex = children.findIndex((child) => child.classList.contains('empty'));
+        const separatorBeforeEmpty = emptyIndex > 0 && children[emptyIndex - 1].classList.contains('menu-sep');
         await window.__popupTest.refreshCurrent();
-        return { rows, emptyText };
+        return { rows, emptyText, separatorBeforeEmpty };
       })();
       `,
     );
     must(
       virtualOnlyRootEmptyMessage.emptyText === 'No bookmarks in this folder' &&
+        virtualOnlyRootEmptyMessage.separatorBeforeEmpty &&
         fixture.topLevelVirtuals.every((node, index) => virtualOnlyRootEmptyMessage.rows[index] === node.title),
       `Virtual-only root did not show the empty message: ${JSON.stringify(virtualOnlyRootEmptyMessage)}`,
     );

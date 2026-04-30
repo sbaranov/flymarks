@@ -375,7 +375,7 @@ async function renderList(children, opts = {}) {
     listEl.append(createItem(node, 'virtual-root'));
   });
 
-  if (virtualFolders.length && ordered.length) {
+  if (virtualFolders.length) {
     listEl.append(createSeparator());
   }
 
