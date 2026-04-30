@@ -467,6 +467,26 @@ async function main() {
       `Virtual root settings did not toggle correctly: ${JSON.stringify(virtualSettingToggles)}`,
     );
 
+    const virtualOnlyRootEmptyMessage = await cdp.eval(
+      sessionId,
+      `
+      (async () => {
+        await window.__popupTest.renderNodes([]);
+        const rows = [...document.querySelectorAll('#bookmark-list > .item')].map((row) =>
+          row.querySelector('.item-title')?.textContent.trim()
+        );
+        const emptyText = document.querySelector('#bookmark-list > .empty')?.textContent.trim() || '';
+        await window.__popupTest.refreshCurrent();
+        return { rows, emptyText };
+      })();
+      `,
+    );
+    must(
+      virtualOnlyRootEmptyMessage.emptyText === 'No bookmarks in this folder' &&
+        fixture.topLevelVirtuals.every((node, index) => virtualOnlyRootEmptyMessage.rows[index] === node.title),
+      `Virtual-only root did not show the empty message: ${JSON.stringify(virtualOnlyRootEmptyMessage)}`,
+    );
+
     const malformedNodesHandled = await cdp.eval(
       sessionId,
       `

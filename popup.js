@@ -361,7 +361,6 @@ async function renderList(children, opts = {}) {
   }
 
   if (!ordered.length) {
-    if (virtualFolders.length) return;
     const empty = document.createElement('div');
     empty.className = 'empty';
     empty.textContent = getEmptyMessage();
