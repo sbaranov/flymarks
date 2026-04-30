@@ -864,6 +864,12 @@ function openContextMenu(_x, _y, node, opts = {}) {
   const virtualContext = Boolean(opts.virtual || isVirtualNode(node) || node.virtualType);
   const syntheticVirtualContext = virtualContext && isVirtualFolderId(node.id);
   const addEnabled = !virtualContext || (folder && !isVirtualFolderId(node.id));
+  const appendBookmarksManagerAction = () => {
+    listEl.append(createContextAction(syntheticVirtualContext ? 'Open Bookmarks Manager' : 'Open in Bookmarks Manager', async () => {
+      const url = syntheticVirtualContext ? getBookmarkManagerUrl() : getBookmarkManagerNodeUrl(node);
+      await api.createTab({ url, active: true });
+    }, { refresh: false, closePopup: true }));
+  };
   listEl.append(createContextBackItem(node), createSeparator());
 
   if (!folder) {
@@ -883,6 +889,9 @@ function openContextMenu(_x, _y, node, opts = {}) {
     if (title === null) return;
     await api.update(node.id, { title });
   }, { disabled: virtualContext }));
+  if (!syntheticVirtualContext) {
+    appendBookmarksManagerAction();
+  }
   listEl.append(separator());
 
   listEl.append(createContextAction('Cut', async () => {
@@ -942,10 +951,9 @@ function openContextMenu(_x, _y, node, opts = {}) {
   }, { disabled: !addEnabled }));
   listEl.append(separator());
 
-  listEl.append(createContextAction(syntheticVirtualContext ? 'Open Bookmarks Manager' : 'Open in Bookmarks Manager', async () => {
-    const url = syntheticVirtualContext ? getBookmarkManagerUrl() : getBookmarkManagerNodeUrl(node);
-    await api.createTab({ url, active: true });
-  }, { refresh: false, closePopup: true }));
+  if (syntheticVirtualContext) {
+    appendBookmarksManagerAction();
+  }
   listEl.append(createContextAction('Show Other Bookmarks', async () => {
     await setSetting('showOtherBookmarks', !state.settings.showOtherBookmarks);
   }, { checked: state.settings.showOtherBookmarks }));
