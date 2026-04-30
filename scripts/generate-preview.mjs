@@ -22,6 +22,7 @@ const rows = [
   { sep: true },
   { type: 'folder', title: 'Work', count: 12 },
   { type: 'folder', title: 'Personal', count: 6 },
+  { type: 'bookmark', title: 'Amazon', favicon: 'https://www.google.com/s2/favicons?domain=amazon.com&sz=64' },
   { type: 'bookmark', title: 'Google', favicon: 'https://www.google.com/s2/favicons?domain=google.com&sz=64' },
   { type: 'bookmark', title: 'YouTube', favicon: 'https://www.google.com/s2/favicons?domain=youtube.com&sz=64' },
   { type: 'bookmark', title: 'Wikipedia', favicon: 'https://www.google.com/s2/favicons?domain=wikipedia.org&sz=64' },
@@ -38,7 +39,6 @@ const rows = [
   },
   { type: 'bookmark', title: 'Google Maps', favicon: 'https://www.google.com/s2/favicons?domain=maps.google.com&sz=64' },
   { type: 'bookmark', title: 'MDN Web Docs', favicon: 'https://www.google.com/s2/favicons?domain=developer.mozilla.org&sz=64' },
-  { type: 'bookmark', title: 'Figma', favicon: 'https://static.figma.com/app/icon/1/favicon.svg' },
 ];
 
 function sleep(ms) {
