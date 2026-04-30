@@ -61,6 +61,10 @@ function isVirtualFolderId(folderId) {
   return typeof folderId === 'string' && folderId.startsWith('virtual:');
 }
 
+function canDropIntoNode(node) {
+  return isFolder(node) && !isVirtualFolderId(node.id);
+}
+
 function getFaviconUrl(url) {
   const faviconUrl = new URL(chrome.runtime.getURL('/_favicon/'));
   faviconUrl.searchParams.set('pageUrl', url);
@@ -700,7 +704,6 @@ function createItem(node, source = 'main') {
   });
 
   item.addEventListener('dragover', (ev) => {
-    if (virtualNode) return;
     const nodeId = node?.id;
     if (!nodeId || !state.drag) return;
     ev.stopPropagation();
@@ -710,9 +713,11 @@ function createItem(node, source = 'main') {
       clearDropMarkers();
       return;
     }
+    if (virtualNode && !canDropIntoNode(node)) return;
     ev.preventDefault();
     clearDropMarkers();
     const intent = getDropIntent(node, item, ev.clientY);
+    if (virtualNode && intent.type !== 'into') return;
     if (intent.type === 'into') {
       scheduleDragFolderEnter(node.id);
       state.lastDropIntent = { folderId: state.currentFolderId, type: 'into', targetNodeId: node.id };
@@ -746,7 +751,6 @@ function createItem(node, source = 'main') {
   });
 
   item.addEventListener('drop', async (ev) => {
-    if (virtualNode) return;
     ev.preventDefault();
     ev.stopPropagation();
     cancelDragFolderEnter();
@@ -757,8 +761,10 @@ function createItem(node, source = 'main') {
     const dragId = state.drag?.id;
     const sourceFolderId = state.drag?.sourceFolderId;
     if (!nodeId || !dragId || dragId === nodeId) return;
+    if (virtualNode && !canDropIntoNode(node)) return;
 
     const intent = getDropIntent(node, item, ev.clientY);
+    if (virtualNode && intent.type !== 'into') return;
     if (intent.type === 'into') {
       await moveDragIntoFolder(node.id, { id: dragId, sourceFolderId });
       return;

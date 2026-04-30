@@ -1181,6 +1181,102 @@ async function main() {
       `Direct drop onto a folder row did not move inside it: ${JSON.stringify(directDropIntoFolder)}`,
     );
 
+    const directDropIntoVirtualRootFolder = await cdp.eval(
+      sessionId,
+      `
+      (async () => {
+        const source = await chrome.bookmarks.create({
+          parentId: window.__popupTest.getState().rootFolderId,
+          title: 'CodexExtTest Virtual Root Drop ' + Date.now().toString(36),
+          url: 'https://example.com/virtual-root-drop',
+        });
+        try {
+          await window.__popupTest.refreshCurrent();
+          await new Promise((r) => setTimeout(r, 120));
+
+          const sourceRow = [...document.querySelectorAll('#bookmark-list > .item[data-node-id]')].find((row) =>
+            row.dataset.nodeId === source.id
+          );
+          const folderRow = [...document.querySelectorAll('#bookmark-list > .item.virtual-root[data-node-id]')].find((row) =>
+            ['Other Bookmarks', 'Mobile Bookmarks'].includes(row.querySelector('.item-title')?.textContent.trim())
+          );
+          if (!sourceRow || !folderRow) {
+            return { moved: false, hasSource: Boolean(sourceRow), hasFolder: Boolean(folderRow) };
+          }
+
+          const targetId = folderRow.dataset.nodeId;
+          const dataTransfer = new DataTransfer();
+          const sourceRect = sourceRow.getBoundingClientRect();
+          sourceRow.dispatchEvent(new DragEvent('dragstart', {
+            bubbles: true,
+            cancelable: true,
+            clientX: sourceRect.left + 24,
+            clientY: sourceRect.top + 12,
+            dataTransfer,
+          }));
+
+          const folderRect = folderRow.getBoundingClientRect();
+          folderRow.dispatchEvent(new DragEvent('dragover', {
+            bubbles: true,
+            cancelable: true,
+            clientX: folderRect.left + 24,
+            clientY: folderRect.top + folderRect.height / 2,
+            dataTransfer,
+          }));
+          const folderStyle = getComputedStyle(folderRow);
+          const dropIntoHighlight = folderRow.classList.contains('drop-into') &&
+            !folderRow.classList.contains('drop-before') &&
+            !folderRow.classList.contains('drop-after') &&
+            folderStyle.backgroundColor !== 'rgba(0, 0, 0, 0)';
+          folderRow.dispatchEvent(new DragEvent('drop', {
+            bubbles: true,
+            cancelable: true,
+            clientX: folderRect.left + 24,
+            clientY: folderRect.top + folderRect.height / 2,
+            dataTransfer,
+          }));
+          sourceRow.dispatchEvent(new DragEvent('dragend', {
+            bubbles: true,
+            cancelable: true,
+            dataTransfer,
+          }));
+
+          let parentId = null;
+          for (let i = 0; i < 30; i++) {
+            const [node] = await chrome.bookmarks.get(source.id);
+            parentId = node?.parentId || null;
+            if (parentId === targetId) break;
+            await new Promise((r) => setTimeout(r, 80));
+          }
+
+          const stillAtRoot = window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId;
+          const sourceStillVisible = [...document.querySelectorAll('#bookmark-list > .item[data-node-id]')]
+            .some((row) => row.dataset.nodeId === source.id);
+
+          return {
+            moved: parentId === targetId,
+            dropIntoHighlight,
+            stillAtRoot,
+            sourceStillVisible,
+            parentId,
+            targetId,
+          };
+        } finally {
+          try {
+            await chrome.bookmarks.remove(source.id);
+          } catch {}
+        }
+      })();
+      `,
+    );
+    must(
+      directDropIntoVirtualRootFolder.moved &&
+        directDropIntoVirtualRootFolder.dropIntoHighlight &&
+        directDropIntoVirtualRootFolder.stillAtRoot &&
+        !directDropIntoVirtualRootFolder.sourceStillVisible,
+      `Direct drop onto Other/Mobile Bookmarks did not move inside it: ${JSON.stringify(directDropIntoVirtualRootFolder)}`,
+    );
+
     const folderEdgeHoverDoesNotNavigate = await cdp.eval(
       sessionId,
       `
