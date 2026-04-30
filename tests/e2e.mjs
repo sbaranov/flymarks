@@ -365,7 +365,10 @@ async function main() {
           clientY: 80,
           button: 2,
         }));
-        await new Promise((r) => setTimeout(r, 80));
+        for (let i = 0; i < 20; i++) {
+          if (document.querySelector('#bookmark-list > .item.context-action')) break;
+          await new Promise((r) => setTimeout(r, 80));
+        }
         const actions = [...document.querySelectorAll('#bookmark-list > .item.context-action')].map((action) => ({
           label: action.querySelector('.item-title')?.textContent.trim(),
           disabled: action.classList.contains('disabled'),
@@ -1514,6 +1517,105 @@ async function main() {
         delayedBackDrag.moved &&
         delayedBackDrag.visibleInParent,
       `Delayed drag over Back did not navigate to parent and continue dragging: ${JSON.stringify(delayedBackDrag)}`,
+    );
+
+    const delayedVirtualRootBackDrag = await cdp.eval(
+      sessionId,
+      `
+      (async () => {
+        await window.__popupTest.refreshCurrent();
+        const virtualRow = [...document.querySelectorAll('#bookmark-list > .item.virtual-root')].find((row) =>
+          ['Other Bookmarks', 'Mobile Bookmarks'].includes(row.querySelector('.item-title')?.textContent.trim())
+        );
+        if (!virtualRow) {
+          return { enteredRoot: false, hasVirtualRow: false };
+        }
+        const virtualFolderId = virtualRow.dataset.nodeId;
+        const created = await chrome.bookmarks.create({
+          parentId: virtualFolderId,
+          title: 'CodexExtTest Virtual Back Hover ' + Date.now().toString(36),
+          url: 'https://example.com/virtual-back-hover',
+        });
+
+        try {
+          virtualRow.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+          for (let i = 0; i < 30; i++) {
+            if (window.__popupTest.getState().currentFolderId === virtualFolderId) break;
+            await new Promise((r) => setTimeout(r, 80));
+          }
+
+          const sourceRow = [...document.querySelectorAll('#bookmark-list > .item[data-node-id]')].find((row) =>
+            row.dataset.nodeId === created.id
+          );
+          const backRow = document.querySelector('#bookmark-list > .item.back');
+          if (!sourceRow || !backRow) {
+            return {
+              enteredRoot: false,
+              hasVirtualRow: true,
+              hasSource: Boolean(sourceRow),
+              hasBack: Boolean(backRow),
+              currentFolderId: window.__popupTest.getState().currentFolderId,
+              virtualFolderId,
+            };
+          }
+
+          const dataTransfer = new DataTransfer();
+          const sourceRect = sourceRow.getBoundingClientRect();
+          sourceRow.dispatchEvent(new DragEvent('dragstart', {
+            bubbles: true,
+            cancelable: true,
+            clientX: sourceRect.left + 24,
+            clientY: sourceRect.top + 12,
+            dataTransfer,
+          }));
+
+          const backRect = backRow.getBoundingClientRect();
+          backRow.dispatchEvent(new DragEvent('dragover', {
+            bubbles: true,
+            cancelable: true,
+            clientX: backRect.left + 24,
+            clientY: backRect.top + backRect.height / 2,
+            dataTransfer,
+          }));
+
+          for (let i = 0; i < 30; i++) {
+            if (window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId) break;
+            await new Promise((r) => setTimeout(r, 80));
+          }
+
+          sourceRow.dispatchEvent(new DragEvent('dragend', {
+            bubbles: true,
+            cancelable: true,
+            dataTransfer,
+          }));
+
+          const rowTitles = [...document.querySelectorAll('#bookmark-list > .item .item-title')]
+            .map((el) => el.textContent.trim());
+          return {
+            enteredRoot: window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId,
+            rootFolderVisible: rowTitles.includes(${JSON.stringify(fixture.names.folder)}),
+            chromeRootHidden: !rowTitles.includes('Bookmarks Bar'),
+            virtualRootsVisible: rowTitles.includes('Other Bookmarks') &&
+              (!${JSON.stringify(hasMobileBookmarksRoot)} || rowTitles.includes('Mobile Bookmarks')),
+            currentFolderId: window.__popupTest.getState().currentFolderId,
+            rootFolderId: window.__popupTest.getState().rootFolderId,
+            virtualFolderId,
+            rowTitles,
+          };
+        } finally {
+          try {
+            await chrome.bookmarks.remove(created.id);
+          } catch {}
+        }
+      })();
+      `,
+    );
+    must(
+      delayedVirtualRootBackDrag.enteredRoot &&
+        delayedVirtualRootBackDrag.rootFolderVisible &&
+        delayedVirtualRootBackDrag.chromeRootHidden &&
+        delayedVirtualRootBackDrag.virtualRootsVisible,
+      `Delayed drag over Back from Other/Mobile showed wrong parent view: ${JSON.stringify(delayedVirtualRootBackDrag)}`,
     );
 
     const dragIntoFolder = await cdp.eval(

@@ -65,6 +65,13 @@ function canDropIntoNode(node) {
   return isFolder(node) && !isVirtualFolderId(node.id);
 }
 
+function getBackTargetFolderId(folder) {
+  if (!folder || folder.id === state.rootFolderId) return null;
+  if (!folder.parentId) return state.rootFolderId;
+  const parent = state.nodesById.get(folder.parentId);
+  return parent?.parentId == null ? state.rootFolderId : folder.parentId;
+}
+
 function getFaviconUrl(url) {
   const faviconUrl = new URL(chrome.runtime.getURL('/_favicon/'));
   faviconUrl.searchParams.set('pageUrl', url);
@@ -272,7 +279,7 @@ function createBackItem() {
   item.classList.add('back');
   item.draggable = false;
   const folder = state.nodesById.get(state.currentFolderId);
-  const parentFolderId = folder?.parentId || null;
+  const parentFolderId = getBackTargetFolderId(folder);
   item.querySelector('.item-icon').textContent = '\u2039';
   item.querySelector('.item-title').textContent = folder?.title || 'Back';
   item.querySelector('.item-meta').textContent = '';
