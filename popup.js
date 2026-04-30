@@ -54,7 +54,7 @@ const api = {
 };
 
 function isBookmark(node) {
-  return typeof node?.url === 'string' && node.url.length > 0;
+  return Boolean(node?.virtualType === 'tab' && node.tabId) || (typeof node?.url === 'string' && node.url.length > 0);
 }
 
 function isFolder(node) {
@@ -292,9 +292,9 @@ async function getVirtualFolder(folderId) {
       api.queryTabGroups({}).then((groups) => groups.find((g) => g.id === groupId)),
       api.queryTabs({ groupId }),
     ]);
-    const children = sortedByIndex(tabs.map((tab) => ({
+    const children = sortedByIndex(tabs.map((tab, index) => ({
       id: `virtual:tab:${tab.id}`,
-      title: tab.title || tab.url || tab.pendingUrl || 'Untitled Tab',
+      title: tab.title || tab.url || tab.pendingUrl || `Tab ${index + 1}`,
       url: tab.url || tab.pendingUrl || '',
       index: tab.index,
       parentId: folderId,
@@ -724,16 +724,20 @@ function createItem(node, source = 'main') {
     item.querySelector('.item-meta').textContent = node.virtualType === 'apps' ? '' : String(count);
   } else {
     item.querySelector('.item-meta').textContent = '';
-    const favicon = document.createElement('img');
-    favicon.className = 'favicon';
-    favicon.src = getFaviconUrl(node.url);
-    favicon.alt = '';
-    favicon.decoding = 'async';
-    favicon.addEventListener('error', () => {
-      favicon.remove();
+    if (node.url) {
+      const favicon = document.createElement('img');
+      favicon.className = 'favicon';
+      favicon.src = getFaviconUrl(node.url);
+      favicon.alt = '';
+      favicon.decoding = 'async';
+      favicon.addEventListener('error', () => {
+        favicon.remove();
+        iconEl.classList.add('fallback');
+      }, { once: true });
+      iconEl.append(favicon);
+    } else {
       iconEl.classList.add('fallback');
-    }, { once: true });
-    iconEl.append(favicon);
+    }
   }
 
   item.addEventListener('click', async (ev) => {

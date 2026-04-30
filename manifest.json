@@ -3,7 +3,7 @@
   "name": "Flymarks",
   "version": "1.0.0",
   "description": "Fast Chrome bookmarks popup with context actions and drag reorder.",
-  "permissions": ["bookmarks", "tabs", "tabGroups", "storage", "favicon"],
+  "permissions": ["bookmarks", "tabGroups", "storage", "favicon"],
   "background": {
     "service_worker": "background.js"
   },
