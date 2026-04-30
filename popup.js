@@ -851,6 +851,16 @@ async function openAllInFolder(folderId, mode = 'tab') {
   await Promise.all(rest.map((url) => api.createTab({ url, active: false })));
 }
 
+function getOpenAllCount(node) {
+  return sortedByIndex(node?.children || [])
+    .filter((child) => isBookmark(child))
+    .length;
+}
+
+function getOpenAllLabel(node, suffix = '') {
+  return `Open All (${getOpenAllCount(node)})${suffix}`;
+}
+
 function getBookmarkManagerUrl({ folderId = '', query = '' } = {}) {
   const url = new URL('chrome://bookmarks/');
   if (folderId) {
@@ -891,9 +901,9 @@ function openContextMenu(_x, _y, node, opts = {}) {
     listEl.append(createContextAction('Open in Incognito Window', () => api.createWindow({ url: node.url, incognito: true }), { refresh: false }));
     listEl.append(separator());
   } else {
-    listEl.append(createContextAction('Open All', () => openAllInFolder(node.id, 'tab'), { refresh: false, closePopup: true, disabled: syntheticVirtualContext }));
-    listEl.append(createContextAction('Open All in New Window', () => openAllInFolder(node.id, 'window'), { refresh: false, disabled: syntheticVirtualContext }));
-    listEl.append(createContextAction('Open All in Incognito Window', () => openAllInFolder(node.id, 'incognito'), { refresh: false, disabled: syntheticVirtualContext }));
+    listEl.append(createContextAction(getOpenAllLabel(node), () => openAllInFolder(node.id, 'tab'), { refresh: false, closePopup: true, disabled: syntheticVirtualContext }));
+    listEl.append(createContextAction(getOpenAllLabel(node, ' in New Window'), () => openAllInFolder(node.id, 'window'), { refresh: false, disabled: syntheticVirtualContext }));
+    listEl.append(createContextAction(getOpenAllLabel(node, ' in Incognito Window'), () => openAllInFolder(node.id, 'incognito'), { refresh: false, disabled: syntheticVirtualContext }));
     listEl.append(separator());
   }
 

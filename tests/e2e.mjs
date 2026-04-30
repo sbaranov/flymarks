@@ -373,12 +373,14 @@ async function main() {
           label: action.querySelector('.item-title')?.textContent.trim(),
           disabled: action.classList.contains('disabled'),
         }));
-        const byLabel = Object.fromEntries(actions.map((action) => [action.label, action]));
-        const openOptionsEnabled = [
-          'Open All',
-          'Open All in New Window',
-          'Open All in Incognito Window',
-        ].every((label) => byLabel[label]?.disabled === false);
+        const openOptionPatterns = [
+          /^Open All \\(\\d+\\)$/,
+          /^Open All \\(\\d+\\) in New Window$/,
+          /^Open All \\(\\d+\\) in Incognito Window$/,
+        ];
+        const openOptionsEnabled = openOptionPatterns.every((pattern) =>
+          actions.some((action) => pattern.test(action.label) && action.disabled === false)
+        );
 
         return {
           foundRow: Boolean(row),
@@ -765,6 +767,9 @@ async function main() {
     must(
       tabGroupActionsRemoved.foundFolder &&
         !tabGroupActionsRemoved.actionLabels.includes('Open All in New Tab Group') &&
+        tabGroupActionsRemoved.actionLabels.includes('Open All (1)') &&
+        tabGroupActionsRemoved.actionLabels.includes('Open All (1) in New Window') &&
+        tabGroupActionsRemoved.actionLabels.includes('Open All (1) in Incognito Window') &&
         tabGroupActionsRemoved.actionLabels.includes('Rename...') &&
         !tabGroupActionsRemoved.actionLabels.includes('Edit...'),
       `Tab group actions were still present: ${JSON.stringify(tabGroupActionsRemoved)}`,
