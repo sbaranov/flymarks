@@ -4,7 +4,7 @@ const itemTemplate = document.getElementById('item-template');
 const SNAPSHOT_KEY = 'bookmarksBarSnapshotV1';
 const SNAPSHOT_LOCAL_KEY = 'bookmarksBarSnapshotLocalV1';
 const SETTINGS_KEY = 'bookmarksBarSettingsV1';
-const DRAG_FOLDER_ENTER_DELAY = 550;
+const DRAG_FOLDER_ENTER_DELAY = 1100;
 const DROP_INTO_FOLDER_EDGE_RATIO = 0.25;
 const DEFAULT_SETTINGS = {
   showOtherBookmarks: true,

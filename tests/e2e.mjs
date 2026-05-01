@@ -1390,7 +1390,7 @@ async function main() {
           cancelable: true,
           dataTransfer,
         }));
-        await new Promise((r) => setTimeout(r, 700));
+        await new Promise((r) => setTimeout(r, 1200));
 
         let parentId = null;
         for (let i = 0; i < 30; i++) {
@@ -1559,7 +1559,7 @@ async function main() {
         const blueLineOnly = folderRow.classList.contains('drop-before') &&
           !folderRow.classList.contains('drop-into');
 
-        await new Promise((r) => setTimeout(r, 700));
+        await new Promise((r) => setTimeout(r, 1200));
         const stayedAtRoot = window.__popupTest.getState().currentFolderId === window.__popupTest.getState().rootFolderId;
 
         sourceRow.dispatchEvent(new DragEvent('dragend', {
