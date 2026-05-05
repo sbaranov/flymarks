@@ -8,7 +8,9 @@ It is open source so you can verify that it does not send your bookmark data any
 
 ## Quick Start
 
-Install the development extension into your main Google Chrome profile:
+Install Flymarks from the [Chrome Web Store](https://chromewebstore.google.com/detail/flymarks/eohdjjkolomidnfbaacmccggllinijng).
+
+For local development, install the unpacked extension into your main Google Chrome profile:
 
 1. Open `chrome://extensions/` in Google Chrome.
 2. Enable Developer mode.
